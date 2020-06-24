@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+
+# ots-bean-check: Run OTS-specific checks on a Beancount file.
+#
+# Copyright (C) 2020  Open Tech Strategies, LLC
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""
+Run OTS-specific checks on a Beancount file.
+
+Usage: './ots-bean-check foo.beancount'
+
+Currently, all this does is check the date ordering of entries.
+
+If you use beancount.el, this is meant to be `beancount-check-program'; see
+https://github.com/beancount/beancount/blob/master/editors/emacs/beancount.el
+for more information.  You can set it up in your .emacs something like this:
+
+  (setq beancount-check-program "/path/to/ots-bookkeeping/ots-bean-check")
+
+  (let ((local-beancount
+         (expand-file-name "~/src/beancount/editors/emacs/beancount.el")))
+    (when (file-exists-p local-beancount)
+      (load-file local-beancount)))
+
+  (add-to-list 'auto-mode-alist '(".*\\.beancount" . beancount-mode))
+"""
+
+import sys
+import re
+
+# There's some newer Python library James likes to use for
+# command-line programs, that handles option-parsing and
+# various other things.  I don't remember what it is, so for
+# now this uses getopt, but I'm happy to switch.
+import getopt
+
+# As we add functionality to this program, functions like this will
+# stop printing errors to stderr, and raise exceptions or return lists
+# of error points.  Furthermore, they'll take some kind of Beancount
+# object as input.  But all that is in the future.  For now, this
+# program does one thing, so this function just does that one thing.
+def check_date_order(input):
+    """Print an error to stderr for every out-of-order date from INPUT.
+    A date is out-of-order if it is earlier than the date preceding it.
+    Return the number of out-of-order dates (thus, zero if none)."""
+    date_re = re.compile("^([0-9]{4})[-/]([0-9]{2})[-/]([0-9]{2})\\s+txn\\s+")
+    num_problems = 0
+    last_int = 0
+    for line in input:
+        line = line.strip()
+        m = date_re.match(line)
+        if m is not None:
+            this_int = int(m.group(1) + m.group(2) + m.group(3))
+            if this_int < last_int:
+                num_problems += 1
+                sys.stderr.write("WARNING: %s\n" % line)
+            last_int = this_int
+    return num_problems
+
+def main():
+    infile = None
+
+    try:
+        (opts, args) = getopt.getopt(sys.argv[1:], "h?",
+                                     [ "help", "usage" ])
+    except getopt.GetoptError as err:
+        sys.stderr.write(str(err))
+        sys.stderr.write("\n")
+        sys.exit(1)
+    for opt, optarg in opts:
+        if opt in ("-h", "-?", "--help", "--usage"):
+            print(__doc__)
+            sys.exit(0)
+    if len(args) < 1:
+        sys.stderr.write("ERROR: one argument (a beancount file) is required\n")
+        sys.exit(1)
+
+    infile = args[0]
+
+    with open(infile) as f:
+        num_problems = check_date_order(f)
+    
+    if num_problems > 0:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+  main()
