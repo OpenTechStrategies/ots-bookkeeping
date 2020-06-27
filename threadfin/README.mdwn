@@ -18,6 +18,13 @@ Converts statements to beancount files.  Point it at a directory of
 statements or csv files, and convert will generate corresponding
 beancount files.
 
+`convert` can parse a few different types of bank and credit card
+statements PDFs, including Chase, Bank of America, TDBank, and Capital
+One credit cards.  It can also handle CSV files from American
+Aadvantage cards.  See the invididual converters in the `convert`
+directory to examples on how to write your own converter.  CSV
+converters are the easiest to write and maintain.
+
 One useful feature in the conversion is that we can put info in
 threadfin.yaml that allows us to tag and comment matching entries.
 For example, this allows us to generate a beancount version of a
