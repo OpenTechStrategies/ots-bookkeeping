@@ -2,8 +2,10 @@
 
 import click
 from dateutil import parser as dateparse
-import subprocess
 import os
+import re
+import subprocess
+
 import util as u
 
 
@@ -118,6 +120,16 @@ def cli(infile, write=False):
     # Don't let those gaps grow infinitely
     while "\n\n\n" in ret:
         ret = ret.replace("\n\n\n", "\n\n")
+
+    # Remove newlines after open commands
+    opens = re.findall(r"\d\d\d\d-\d\d-\d\d open.*\n\n", ret)
+    for o in opens:
+        ret = ret.replace(o, o.rstrip() + "\n")
+
+    # Remove newlines after close commands
+    opens = re.findall(r"\d\d\d\d-\d\d-\d\d close.*\n\n", ret)
+    for o in opens:
+        ret = ret.replace(o, o.rstrip() + "\n")
 
     if write:
         bak_count = 0
