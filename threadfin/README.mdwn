@@ -1,21 +1,22 @@
 # Threadfin
 
 Threadfin is a set of utilities for working with ledger files.  Look
-in the "bin" directory for a list of those utilities, then look at
-<utility-name>.mdwn for documentation about each utility.  Run the
+at <utility-name>.mdwn for documentation about each utility.  Run the
 utility with `threadfin foo bar baz` where "foo" is the name of the
 utility and "bar" and "baz" are options to that utility.
 
 For example: `threadfin sort /path/to/ledger/file`.
 
-# config.yaml
-The overall config is in config.yaml.
-
 # threadfin.yaml
-Each statement dir can have a threadfin.yaml in which additional config can live.
+Each statement dir can have a threadfin.yaml in which config can live.
+
+The format and use of `threadfin.yaml` files isn't fully baked, so I
+haven't documented it yet.
 
 # Convert
-Converts statements to beancount files.
+Converts statements to beancount files.  Point it at a directory of
+statements or csv files, and convert will generate corresponding
+beancount files.
 
 One useful feature in the conversion is that we can put info in
 threadfin.yaml that allows us to tag and comment matching entries.
@@ -30,4 +31,4 @@ you want to make sure the hand-coded entries match the bank
 statements.
 
 # Sort
-Sorts beancount files by date.
+Sort a beancount file's entries by date.
