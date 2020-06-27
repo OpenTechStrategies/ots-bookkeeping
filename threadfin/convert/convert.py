@@ -187,8 +187,10 @@ def cli(directory, config=None):
         if bc:
             ret += bc + "\n"
 
-    ret += ("\n;;;;;;;;;;;;;;;;;;;;;;;;\n;; Balance assertions\n")
-    ret += (statements.printable_assertions() + "\n")
+    assertions = statements.printable_assertions() + "\n"
+    if assertions.strip():
+        ret += ("\n;;;;;;;;;;;;;;;;;;;;;;;;\n;; Balance assertions\n")
+        ret += assertions
 
     beanfile = os.path.join(direc, "all.beancount")
     with open(beanfile, 'w') as fh:
