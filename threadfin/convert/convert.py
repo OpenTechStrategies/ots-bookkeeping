@@ -157,9 +157,8 @@ def get_custom(direc):
 # This module lets us operate on statements
 @click.command()
 @click.option('--config', default="config.yaml", help="config file")
-@click.option('--output', default="", help="write to file instead of stdout")
 @click.argument('directory')
-def cli(directory, output="", config=None):
+def cli(directory, config=None):
     """Output a statement as a beancount ledger, along with balance assertions."""
 
     direc = directory
