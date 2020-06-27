@@ -94,7 +94,9 @@ class Statement(statement.Statement):
         global CUSTOM
         CUSTOM = custom
 
-        self.beanfile_preamble = ";; -*- mode: org; mode: beancount; -*-\n"
+        self.beanfile_preamble = (";; -*- mode: org; mode: beancount; -*-\n" +
+                                  "1975-01-01 open Expenses:AAdvantage\n" +
+                                  "1975-01-01 open Liabilities:AAdvantage\n")
 
     def parse(self):
         sh = io.StringIO(self.text)
