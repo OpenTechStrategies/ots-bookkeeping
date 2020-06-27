@@ -21,7 +21,6 @@ import os
 import sys
 
 
-# import tdbank
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 
