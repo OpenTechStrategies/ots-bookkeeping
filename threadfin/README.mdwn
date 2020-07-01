@@ -3,7 +3,8 @@
 Threadfin is a set of utilities for working with ledger files.  Look
 at <utility-name>.mdwn for documentation about each utility.  Run the
 utility with `threadfin foo bar baz` where "foo" is the name of the
-utility and "bar" and "baz" are options to that utility.
+utility and "bar" and "baz" are options to that utility.  You'll
+probably want to place `bin/threadfin` somewhere on your path.
 
 For example: `threadfin sort /path/to/ledger/file`.
 
@@ -16,7 +17,9 @@ haven't documented it yet.
 # Convert
 Converts statements to beancount files.  Point it at a directory of
 statements or csv files, and convert will generate corresponding
-beancount files.
+beancount files.  Try something like this to see how it works:
+
+    threadfin convert examples/aadvantage
 
 `convert` can parse a few different types of bank and credit card
 statements PDFs, including Chase, Bank of America, TDBank, and Capital
