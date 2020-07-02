@@ -35,6 +35,19 @@ credit card statement with the business expenses tagged.  You have the
 overhead of having to write auto-tag entries, but you can write them
 to match multiple entries so that they capture recurring payments.
 
+## Inbox
+
+Parse those invoices in your inbox for transaction data.  This
+directory contains scripts that can each parse a different service.
+
+We recommend making a separate beancount file for each service you
+want to automatically work with.  Here's an example using
+`digital-ocean.py`:
+
+    digital-ocean.py /path/to/statements /path/to/digital_ocean.beancount
+
+See `digital-ocean.py` for more detail.
+
 # Reconcile
 Reconcile two beancount files.  This is useful for a bank account when
 you want to make sure the hand-coded entries match the bank
