@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Get real path to this script, through layers of symlinks.  This
+# script sits in a bin dir in our main dir, so get our main dir
+DIR="$(dirname $(readlink -f $0))"
+PARENT=$(realpath ${DIR}/..)
+
+cd ${DIR}
+SCRIPTNAME=$1
+shift
+${DIR}/${SCRIPTNAME} $@

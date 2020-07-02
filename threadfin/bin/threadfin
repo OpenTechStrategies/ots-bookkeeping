@@ -7,7 +7,7 @@
 ## any particular system.
 
 if [ -z $1 ]; then
-    echo "Usage: threadfin convert|reconcile|sort OPTIONS"
+    echo "Usage: threadfin convert|inbox|reconcile|sort OPTIONS"
     echo "Try: threadfin reconcile --help"
     exit
 fi
