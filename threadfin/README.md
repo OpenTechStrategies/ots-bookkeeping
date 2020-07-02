@@ -42,11 +42,11 @@ directory contains scripts that can each parse a different service.
 
 We recommend making a separate beancount file for each service you
 want to automatically work with.  Here's an example using
-`digital-ocean.py`:
+`digital-ocean`:
 
-    digital-ocean.py /path/to/statements /path/to/digital_ocean.beancount
+    inbox digital-ocean -w /path/to/statements /path/to/digital_ocean.beancount
 
-See `digital-ocean.py` for more detail.
+See `inbox/digital-ocean` for more detail.
 
 # Reconcile
 Reconcile two beancount files.  This is useful for a bank account when
