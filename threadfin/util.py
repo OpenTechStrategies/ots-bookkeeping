@@ -1,7 +1,6 @@
 from dateutil import parser as dateparse
 import datetime
 from money import Money
-import mustache
 import os
 import subprocess
 import sys
@@ -10,14 +9,14 @@ import yaml
 VERBOSE = False
 
 
-def bean_query(bean_file, query):
-    cmd = "bean-query %s \"%s\";" % (bean_file, query)
+def bean_query(bean_file, query, csv=False):
+    csv = "-f csv" if csv else ""
+    cmd = f"bean-query {csv} {bean_file} \"{query}\";"
     return run_command(cmd).strip()
 
 
 def bean_query_csv(bean_file, query):
-    cmd = "bean-query -f csv %s \"%s\";" % (bean_file, query)
-    return run_command(cmd).strip()
+    return bean_query(bean_file, query, True)
 
 
 def current_dir_name():
@@ -34,6 +33,7 @@ def err(msg):
 
 def get_config(fname):
     """Grab config.yaml, parse and return"""
+    import mustache
     with open(fname) as fh:
         settings = yaml.safe_load(fh.read())
 
@@ -231,6 +231,14 @@ def parse_money(money_string, ignore_error=False):
             return None
         else:
             raise
+
+
+def pdf2txt(pdfname):
+    """Convert pdfname to text, cache the result, return the text"""
+    txtname = os.path.splitext(pdfname)[0] + ".txt"
+    if not os.path.exists(txtname):
+        run_command("pdftotext -layout %s %s" % (pdfname, txtname))
+    return slurp(txtname)
 
 
 def rm_file(fname, verbose=False):

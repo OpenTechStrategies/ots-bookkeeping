@@ -145,7 +145,7 @@ class Statement(Transactions):
         self.deposits = 0
 
         if fname.endswith("pdf"):
-            self.text = self.pdf2txt(fname)
+            self.text = u.pdf2txt(fname)
         else:
             self.text = u.slurp(fname, decode=None)
 
@@ -195,13 +195,6 @@ class Statement(Transactions):
             accounts.append(credit)
         accounts.extend(ca.get('other', []))
         return "\n".join(["2010-01-01 open %s" % o for o in accounts]) + "\n"
-
-    def pdf2txt(self, pdfname):
-        """Convert pdfname to text, cache the result, return the text"""
-        txtname = os.path.splitext(pdfname)[0] + ".txt"
-        if not os.path.exists(txtname):
-            u.run_command("pdftotext -layout %s %s" % (pdfname, txtname))
-        return u.slurp(txtname)
 
     def parse(self):
         """
