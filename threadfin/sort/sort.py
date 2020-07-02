@@ -99,18 +99,17 @@ def sort_beancount_text(beancount_text):
         ret += sorted_txs(txs)
         txs = ""
 
-    return ret
     # Don't let those gaps grow infinitely
     while "\n\n\n" in ret:
         ret = ret.replace("\n\n\n", "\n\n")
 
     # Remove newlines after open commands
-    opens = re.findall(r"\d\d\d\d-\d\d-\d\d open.*\n\n", ret)
+    opens = re.findall(r"\d\d\d\d-\d\d-\d\d open .*\n+", ret)
     for o in opens:
         ret = ret.replace(o, o.rstrip() + "\n")
 
     # Remove newlines after close commands
-    opens = re.findall(r"\d\d\d\d-\d\d-\d\d close.*\n\n", ret)
+    opens = re.findall(r"\d\d\d\d-\d\d-\d\d close .*\n\n", ret)
     for o in opens:
         ret = ret.replace(o, o.rstrip() + "\n")
 
