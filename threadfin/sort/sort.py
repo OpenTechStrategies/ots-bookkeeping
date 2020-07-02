@@ -39,30 +39,12 @@ def print_sorted_txs(txs):
     print(sorted_txs(txs))
 
 
-@click.command()
-@click.option('-w', '--write', default=False, is_flag=True)
-@click.argument('infile')
-def cli(infile, write=False):
-    """Sort ledger by effective date.
-
-    We assume a ledger in which the first line of transactions start
-    in column 0 and that each succeeding line of the transaction is
-    indented with spaces and there are no blanks lines in
-    transactions.  We also assume that effective dates are specified
-    using the "date=date" notation and not bracket notation.
-
-    """
-
-    """We're going to do this manually rather than use any of our data
-    structures because we completely avoid any parsing error that
-    might sneak into a "parse and reproduce" cycle.
-
-    """
-
+def sort_beancount_text(beancount_text):
+    """BEANCOUNT_TEXT is the contents of a beancount file"""
     ret = ""
     txs = ""
     non_tx = ""
-    for line in u.slurp(infile).split("\n"):
+    for line in beancount_text.split("\n"):
         linestart = line.split(" ")[0]
 
         # Skip blanks.  We'll put appropriate blanks in later
@@ -117,6 +99,7 @@ def cli(infile, write=False):
         ret += sorted_txs(txs)
         txs = ""
 
+    return ret
     # Don't let those gaps grow infinitely
     while "\n\n\n" in ret:
         ret = ret.replace("\n\n\n", "\n\n")
@@ -131,6 +114,29 @@ def cli(infile, write=False):
     for o in opens:
         ret = ret.replace(o, o.rstrip() + "\n")
 
+    return ret
+
+
+@click.command()
+@click.option('-w', '--write', default=False, is_flag=True)
+@click.argument('infile')
+def cli(infile, write=False):
+    """Sort ledger by effective date.
+
+    We assume a ledger in which the first line of transactions start
+    in column 0 and that each succeeding line of the transaction is
+    indented with spaces and there are no blanks lines in
+    transactions.  We also assume that effective dates are specified
+    using the "date=date" notation and not bracket notation.
+
+    """
+
+    """We're going to do this manually rather than use any of our data
+    structures because we completely avoid any parsing error that
+    might sneak into a "parse and reproduce" cycle.
+
+    """
+    ret = sort_beancount_text(u.slurp(infile))
     if write:
         bak_count = 0
         while os.path.exists(f"{infile}.bak{bak_count}"):
