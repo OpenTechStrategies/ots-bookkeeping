@@ -155,6 +155,8 @@ def get_custom(direc):
     return custom
 
 # This module lets us operate on statements
+
+
 @click.command()
 @click.option('--config', default="config.yaml", help="config file")
 @click.argument('directory')

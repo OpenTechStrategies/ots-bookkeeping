@@ -16,6 +16,7 @@ rx['date'] = re.compile("[0-9][0-9]/[0-9][0-9]")
 rx['checknum'] = re.compile(
     r"(\d\d*)\s+([* ^]*) *(\S*) *(\d\d/\d\d) *(\S*)")
 
+
 class Transaction(transaction.Transaction):
     def as_beancount(self):
         self.vals['date'] = self['date'].strftime("%Y-%m-%d")
@@ -23,12 +24,12 @@ class Transaction(transaction.Transaction):
         self.vals['comment'] = self.get('note', '')
         self.vals['amount'] = self['amount'].amount
         self.vals['currency'] = self['amount'].currency
-        self.vals['account'] = CUSTOM['accounts']['debit']+":James:Karl"
-        self.vals['account2'] = CUSTOM['accounts']['credit']+":James:Karl"
-        
+        self.vals['account'] = CUSTOM['accounts']['debit'] + ":James:Karl"
+        self.vals['account2'] = CUSTOM['accounts']['credit'] + ":James:Karl"
+
         tx = self
         h = self.vals
-        
+
         if tx['category'] == 'FEES':
             h['payee'] = "Chase Bank"
             h['narration'] = "Bank Fees"
@@ -43,17 +44,17 @@ class Transaction(transaction.Transaction):
             h['narration'] = "ATM/Debit Card"
             for holder in CUSTOM['cardholders']:
                 if tx['note'][-4:] in CUSTOM['cardholders'][holder]:
-                    ## Assume card holder owns the expense, but override below
-                    ## if needed.
+                    # Assume card holder owns the expense, but override below
+                    # if needed.
                     split = holder
                     h['cardholder'] = holder
             if not h['cardholder'] or not split:
                 u.err("Unknown cardholder: %s" % tx)
-            
+
             h = self.custom_match_comment(CUSTOM['comment'], h)
             if 'split' in h:
                 split = h['split']
-                
+
             h['account'] = "%s:%s" % (CUSTOM['accounts']['debit'], split)
             h['account2'] = "%s:%s" % (CUSTOM['accounts']['credit'], split)
         elif tx['category'] == 'E-WITHDRAW':
@@ -61,10 +62,10 @@ class Transaction(transaction.Transaction):
         elif tx['category'] == 'OTHER-WITHDRAW':
             h['narration'] = "Other-Withdraw"
         else:
-            raise UnimplementedError( "Can't handle %s" % tx['category'] )
+            raise UnimplementedError("Can't handle %s" % tx['category'])
 
         return self.interpolate(h)
-    
+
 
 class Statement(statement.Statement):
     def __init__(self, pdfname, custom):
@@ -75,14 +76,15 @@ class Statement(statement.Statement):
             self.bank = ""
             return
         self.bank = "Chase"
-        
+
         # Make custom available to transactions without passing it all
         # the way through.
         global CUSTOM
-        CUSTOM = custom        
-        
-        self.beanfile_preamble = (";; -*- mode: org; mode: beancount; -*-\n"
-                                  +'plugin "beancount.plugins.share_postings" "James Karl"\n\n')
+        CUSTOM = custom
+
+        self.beanfile_preamble = (
+            ";; -*- mode: org; mode: beancount; -*-\n" +
+            'plugin "plugins.share_postings" "James Karl"\n\n')
 
     def parse(self):
         txt = self.text
@@ -156,7 +158,7 @@ class Statement(statement.Statement):
                     t['amount'] = parse_money(m.groups()[4]) * -1
                     # print self.year, t
                     self.transactions.append(t)
-                    
+
             if line.startswith(
                     "ATM & DEBIT CARD WITHDRAWALS") or mode == "ATM & DEBIT CARD WITHDRAWALS":
                 mode = "ATM & DEBIT CARD WITHDRAWALS"
@@ -284,7 +286,8 @@ class Statement(statement.Statement):
 
                     for p in range(0, len(parts), 2):
                         d = "%s/%s" % (self.year, parts[p])
-                        self.daily_bal[dateparse.parse(d).date()] = parse_money(parts[p + 1])
+                        self.daily_bal[dateparse.parse(
+                            d).date()] = parse_money(parts[p + 1])
             if line.startswith(
                     "SERVICE CHARGE SUMMARY") or mode == "SERVICE CHARGE SUMMARY":
                 mode = "SERVICE CHARGE SUMMARY"
@@ -300,71 +303,92 @@ class Statement(statement.Statement):
                 sys.stderr.writeln(t.dump())
                 sys.exit(-1)
             if 'date2' in t:
-                t['date2'] = dateparse.parse("%s/%s" % (self.year, t['date2'])).date()
+                t['date2'] = dateparse.parse(
+                    "%s/%s" %
+                    (self.year, t['date2'])).date()
 
     def sanity_check(self):
         """Make sure things add up."""
-        
+
         total = self.begin_bal
-        
+
         # Make sure deposits add up
-        t = parse_money(sum([t['amount'] for t in self.transactions if t['category']=='DEPOSIT']))
+        t = parse_money(
+            sum([t['amount'] for t in self.transactions if t['category'] == 'DEPOSIT']))
         if t != parse_money(self.deposits):
-            u.err("%s deposits (%s) don't add up to %s\n" % (self.pdfname, t, self.deposits))
+            u.err(
+                "%s deposits (%s) don't add up to %s\n" %
+                (self.pdfname, t, self.deposits))
         total += t
 
         # Make sure checks add up
-        t = parse_money(sum([t['amount'] for t in self.transactions if t['category']=='CHECK']))
+        t = parse_money(
+            sum([t['amount'] for t in self.transactions if t['category'] == 'CHECK']))
         if t != parse_money(self.paid_checks_total):
-            sys.stderr.write("%s/%s total check mismatch (%s != %s)\n" % (self.year, self.month, t, self.paid_checks_total))
-            sys.stderr.write("".join([t.dump() for t in self.transactions if t['category']=='CHECK']))
+            sys.stderr.write(
+                "%s/%s total check mismatch (%s != %s)\n" %
+                (self.year, self.month, t, self.paid_checks_total))
+            sys.stderr.write(
+                "".join([t.dump() for t in self.transactions if t['category'] == 'CHECK']))
             sys.stderr.write("\n")
             sys.exit(-1)
         total += t
 
         # TODO: check the summary of checks paid against everything else
-        
+
         # Make sure card withdrawals add up
-        t = parse_money(sum([t['amount'] for t in self.transactions if t['category']=='ATM/DEBIT']))
+        t = parse_money(
+            sum([t['amount'] for t in self.transactions if t['category'] == 'ATM/DEBIT']))
         try:
             if t != self.card_withdrawals:
-                u.err("%s card withdrawals (%s) don't add up to %s\n" % (self.pdfname, t, self.card_withdrawals))
+                u.err(
+                    "%s card withdrawals (%s) don't add up to %s\n" %
+                    (self.pdfname, t, self.card_withdrawals))
             total += t
         except AttributeError:
             pass
-        
+
         # Make sure e-withdrawals add up
-        t = parse_money(sum([t['amount'] for t in self.transactions if t['category']=='E-WITHDRAW']))
+        t = parse_money(
+            sum([t['amount'] for t in self.transactions if t['category'] == 'E-WITHDRAW']))
         try:
             if t != self.electronic_withdrawals:
-                sys.stderr.write("%s e-withdrawals (%s) don't add up to %s\n" % (self.pdfname, t, self.electronic_withdrawals))
-                print("\n".join([t.dump() for t in self.transactions if t['category'] == 'E-WITHDRAW']))
+                sys.stderr.write(
+                    "%s e-withdrawals (%s) don't add up to %s\n" %
+                    (self.pdfname, t, self.electronic_withdrawals))
+                print("\n".join(
+                    [t.dump() for t in self.transactions if t['category'] == 'E-WITHDRAW']))
                 sys.exit(-1)
             total += t
         except AttributeError:
             pass
 
         # Make sure other withdrawals add up
-        t = parse_money(sum([t['amount'] for t in self.transactions if t['category']=='OTHER-WITHDRAW']))
+        t = parse_money(sum(
+            [t['amount'] for t in self.transactions if t['category'] == 'OTHER-WITHDRAW']))
         try:
             if t != self.other_withdrawals:
-                u.err("%s other withdrawals (%s) don't add up to %s\n" % (self.pdfname, t, self.other_withdrawals))
+                u.err("%s other withdrawals (%s) don't add up to %s\n" %
+                      (self.pdfname, t, self.other_withdrawals))
             total += t
         except AttributeError:
             pass
 
         # Make sure fees and other withdrawals add up
-        t = parse_money(sum([t['amount'] for t in self.transactions if t['category']=='FEES']))
+        t = parse_money(
+            sum([t['amount'] for t in self.transactions if t['category'] == 'FEES']))
         try:
             if t != self.fees:
-                u.err("%s fees and other withdrawals (%s) don't add up to %s\n" % (self.pdfname, t, self.fees))
+                u.err(
+                    "%s fees and other withdrawals (%s) don't add up to %s\n" %
+                    (self.pdfname, t, self.fees))
             total += t
         except AttributeError:
             pass
 
-        ## Check that the daily balances printed on the statement
-        ## match the daily balances we calculate by totting up all the
-        ## transactions.
+        # Check that the daily balances printed on the statement
+        # match the daily balances we calculate by totting up all the
+        # transactions.
         curr = None
         running = 0
         cumulative = self.begin_bal
@@ -372,18 +396,22 @@ class Statement(statement.Statement):
             if curr != tx['date']:
                 if curr and running:
                     if cumulative != self.daily_bal[curr]:
-                        u.err("%s doesn't add up. " % self.pdfname
-                              + "Daily balance in statements (%s) != daily bal calculated from statement (%s)\n" %
-                              (self.daily_bal[curr], cumulative))
+                        u.err(
+                            "%s doesn't add up. " %
+                            self.pdfname +
+                            "Daily balance in statements (%s) != daily bal calculated from statement (%s)\n" %
+                            (self.daily_bal[curr],
+                             cumulative))
                 running = 0
                 curr = tx['date']
             cumulative += tx['amount']
             running += tx['amount']
-            
+
         # Make sure total amounts add up to the delta between start/end balances
-        # Do this check last so a more specific one triggers errors before we get here
+        # Do this check last so a more specific one triggers errors before we
+        # get here
         if total != self.end_bal:
-            u.err("%s transactions (%s) don't add up to ending balance (%s)\n" % (self.pdfname, total, self.end_bal)
-                  +"There's %s unaccounted\n" % (total- self.end_bal))
-    
-    
+            u.err(
+                "%s transactions (%s) don't add up to ending balance (%s)\n" %
+                (self.pdfname, total, self.end_bal) + "There's %s unaccounted\n" %
+                (total - self.end_bal))
