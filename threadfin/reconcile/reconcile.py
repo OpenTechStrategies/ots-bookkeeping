@@ -80,9 +80,10 @@ class Account(dict):
 
 
 class Reconciler():
-    def __init__(self, ac1, ac2):
+    def __init__(self, ac1, ac2, template_dir):
         self.ac1 = Account(ac1)
         self.ac2 = Account(ac2)
+        self.template_dir = template_dir
 
     def get_latest_good_date(self):
         """Returns two values: the latest date on which both ledgers match and
@@ -165,9 +166,9 @@ class Reconciler():
                     }
 
         return mustache.render(
-            settings['templates'], "master", {
+            template_dir, "master", {
                 'body': mustache.render(
-                    settings['templates'],
+                    template_dir,
                     "reconcile_body", body_dat)})
 
     def write_web_page(self, fname, date):
@@ -179,19 +180,19 @@ class Reconciler():
 
 @click.command()
 @click.option('--config', default="config.yaml", help="config file")
-@click.option(
-    '--date',
-    default="",
-    help="Check one day's transactions against bank records")
+@click.option('--date', help="Check a day's transactions against bank records")
+@click.option('--templates', help="Template directory")
 @click.argument('account', nargs=2)
-def cli(account, config=None, date=""):
+def cli(account, config=None, date="", templates=""):
     """reconcile - display unreconciled statements between two accounts.
 
     ACCOUNT is the name of the account in config. Please specify two accounts."""
 
-    global settings
+    if not templates:
+        templates = os.path.join(os.path.split(__file__)[0], "templates")
+
     settings = u.get_config(config)
-    beancount.settings = settings
+    beancount.settings = {'templates': templates}
     accounts = {k['name']: k for k in settings['accounts']}
 
     # Set ledger_accounts in settings.  In config, we keep this info
@@ -202,7 +203,9 @@ def cli(account, config=None, date=""):
             accounts[account[0]]['ledger_accounts'] = r[account[0]]
             accounts[account[1]]['ledger_accounts'] = r[account[1]]
 
-    reconciler = Reconciler(accounts[account[0]], accounts[account[1]])
+    reconciler = Reconciler(accounts[account[0]],
+                            accounts[account[1]],
+                            template_dir=templates)
     if date:
         reconciler.reconcile(date)
     else:
