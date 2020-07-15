@@ -199,7 +199,9 @@ class Transaction(dict):
 def get_register(account):
     """Returns a Register class for beancount.
 
-    ACCOUNT is an account from config.yaml"""
+    ACCOUNT is a dict with at least a 'ledger_file' field.
+
+    """
 
     reg = Register(account)
     if len(reg) == 0:

@@ -20,15 +20,23 @@ class Register(Transactions):
     """A Register is a list of the transactions from an account"""
 
     def __init__(self, account):
-        """ACCOUNT is an account from config.py"""
+        """ACCOUNT is a dict containing some information about an account:
+
+        It probably has a 'ledger_file' field.  It might have a
+        'ledger_accounts' field.
+
+        'ledger_file' -=> filespec for beancount file
+        'ledger_accounts' -=> a list of asset accounts we care about
+
+        """
         Transactions.__init__(self)
 
         if str(type(self)) == "<class 'register.Register'>":
             raise UninheritedError(
                 "Don't call this module directly. Use register.get_register(account)")
 
-        self.fname = account['ledger_file']
-        self.accounts = account['ledger_accounts']
+        self.fname = account.get('ledger_file', '')
+        self.accounts = account.get('ledger_accounts', '')
         self.register_text = self.load_reg_text()
         self.register_lines = [l for l in self.register_text.split("\n") if l]
 

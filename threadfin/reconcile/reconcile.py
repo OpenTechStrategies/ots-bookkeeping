@@ -25,6 +25,16 @@ pp = pprint.PrettyPrinter(indent=4).pprint
 
 
 class Account(dict):
+    """This is a dict.  It has some fields that let it represent an account.
+
+    ledger_accounts -=> Assets:Checking etc
+    ledger_fname -=> The name of the beancount file
+    name -=> A string like 'main' or 'chase' that is the name of this account
+    reg -=> the register for this account
+    txs -=> the transactions in that register
+
+    """
+
     def __init__(self, account):
         dict.__init__(self, account)
         self['reg'] = beancount.get_register(self)
