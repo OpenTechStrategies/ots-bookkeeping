@@ -48,6 +48,13 @@ want to automatically work with.  Here's an example using
 
 See `inbox/digital-ocean` for more detail.
 
+# Open-Close
+
+Generate open and close directives based on a beancount file or a
+directory of beancount files.
+
+    threadfin open-close path/to/beancount/files
+
 # Reconcile
 Reconcile two beancount files.  This is useful for a bank account when
 you want to make sure the hand-coded entries match the bank
