@@ -6,7 +6,7 @@ to help with that.
 
 # Setup
 
-Set the `OTS_BOOKKEEPING` environment variable to the absolute path of
+Set the `OTS_BOOKKEEPING_DIR` environment variable to the absolute path of
 the directory containing this code.  Our convention is that programs
 using this code will locate it by examining that environment variable.
 

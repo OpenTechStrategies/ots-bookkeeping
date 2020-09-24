@@ -13,7 +13,7 @@ the transactions found in those statements.  It also leaves monthly
 We should stop trying to manage a bunch of bank statement files and
 instead just treat them as ledger.  This code does that.
 
-Try this:  bin/threadfin convert ${OTSDIR}/finances/statements
+Try this:  bin/threadfin convert ${OTS_DIR}/finances/statements
 
 This script does a few sanity checks.  First, it runs a series of
 sanity checks on the statement import to make sure things add up.  For

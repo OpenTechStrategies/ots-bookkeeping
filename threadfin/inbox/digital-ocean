@@ -244,8 +244,8 @@ def main():
 
             # Calculate a nice-looking path to the invoice
             fspec = os.path.abspath(fspec)
-            if fspec.startswith(os.environ['OTSDIR']):
-                fspec = fspec[len(os.environ['OTSDIR']) + 1:]
+            if fspec.startswith(os.environ['OTS_DIR']):
+                fspec = fspec[len(os.environ['OTS_DIR']) + 1:]
 
             ret += make_txs(charges, parse_info, fspec)
 
