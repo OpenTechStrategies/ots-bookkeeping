@@ -90,10 +90,10 @@ class Account(dict):
 
 
 class Reconciler():
-    def __init__(self, ac1, ac2, template_dir):
+    def __init__(self, ac1, ac2, templates):
         self.ac1 = Account(ac1)
         self.ac2 = Account(ac2)
-        self.template_dir = template_dir
+        self.templates = templates
 
     def get_latest_good_date(self):
         """Returns two values: the latest date on which both ledgers match and
@@ -133,7 +133,7 @@ class Reconciler():
             latest_good)
 
         print("Next transaction: %s" % earliest_bad)
-        self.write_web_page("out.html", earliest_bad)
+        self.write_web_page("/tmp/reconcile.html", earliest_bad)
 
     def web_page(self, date):
         rows = []
@@ -175,11 +175,12 @@ class Reconciler():
                     'rows': rows,
                     }
 
-        return mustache.render(
-            template_dir, "master", {
-                'body': mustache.render(
-                    template_dir,
-                    "reconcile_body", body_dat)})
+        body = mustache.render(self.templates,
+                               "reconcile_body",
+                               body_dat)
+        return mustache.render(self.templates,
+                               "master",
+                               {'body': body})
 
     def write_web_page(self, fname, date):
         account = ""
@@ -196,13 +197,16 @@ class Reconciler():
 def cli(account, config=None, date="", templates=""):
     """reconcile - display unreconciled statements between two accounts.
 
-    ACCOUNT is the name of the account in config. Please specify two accounts."""
+    ACCOUNT is a beancount file.  Please specify two."""
 
+    # Load templates
     if not templates:
         templates = os.path.join(os.path.split(__file__)[0], "templates")
+    templates = mustache.load_templates(templates)
+
+    beancount.settings = {'templates': templates}
 
     settings = u.get_config(config)
-    beancount.settings = {'templates': templates}
     accounts = {k['name']: k for k in settings['accounts']}
 
     # Set ledger_accounts in settings.  In config, we keep this info
@@ -215,7 +219,7 @@ def cli(account, config=None, date="", templates=""):
 
     reconciler = Reconciler(accounts[account[0]],
                             accounts[account[1]],
-                            template_dir=templates)
+                            templates=templates)
     if date:
         reconciler.reconcile(date)
     else:
