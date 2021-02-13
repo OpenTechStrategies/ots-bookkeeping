@@ -231,6 +231,6 @@ class Statement(Transactions):
             fh.write(self.beanfile_preamble)
             fh.write(self.open_accounts())
             fh.write(bc)
-        if u.run_command("bean-check %s" % self.beancount_fname):
-            u.err("bean-check has errors for %s" % self.beancount_fname)
+        # if u.run_command("bean-check %s" % self.beancount_fname):
+            # u.err("bean-check has errors for %s" % self.beancount_fname)
         return bc

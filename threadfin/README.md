@@ -19,7 +19,16 @@ Converts statements to beancount files.  Point it at a directory of
 statements or csv files, and convert will generate corresponding
 beancount files.  Try something like this to see how it works:
 
+    threadfin convert ~/OTS/finances/statements
+
+or
     threadfin convert examples/aadvantage
+
+That first command is useful because you end up with a bunch of
+beancount files representing your statements, and those are very
+useful for finding matching entries that are simply dated wrong in
+your main file.  You can also copy+modify entries into your actual
+beancount file from there.
 
 `convert` can parse a few different types of bank and credit card
 statements PDFs, including Chase, Bank of America, TDBank, and Capital

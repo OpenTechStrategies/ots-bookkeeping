@@ -197,8 +197,8 @@ def cli(directory, config=None):
     beanfile = os.path.join(direc, "all.beancount")
     with open(beanfile, 'w') as fh:
         fh.write(ret)
-    if u.run_command("bean-check %s" % beanfile):
-        u.err("bean-check has errors for %s" % beanfile)
+    # if u.run_command("bean-check %s" % beanfile):
+        # u.err("bean-check has errors for %s" % beanfile)
 
 
 if __name__ == "__main__":
