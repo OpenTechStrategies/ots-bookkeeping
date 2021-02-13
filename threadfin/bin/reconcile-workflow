@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# This script runs reconcile whenever a beancount file changes and
+# then if firefox is visiting /tmp/reconcile.html refreshes that page.
+
+# When doing reconciliation work, I use this to watch my beancount
+# files and trigger this script when they change.  I have my editor
+# open and my browser side-by-side.  Making changes to the beancount
+# files triggers changes in my browser view, so I can make fast
+# progress.
+
+# Note that to autorefresh the browser, you need to manually "firefox
+# /tmp/reconcile.html" before this so that firefox is already visiting
+# the file, and it only works if that tab is currently focused in
+# firefox.
+
+# Note that this relies on xdotool, which means it relies on the x
+# server.  If you have a modern GNOME system, you might not be using
+# x.  You might be using wayland.  I know nothing about such things
+# except that xdotool is at least a little broken for at least some
+# windows.  Perhaps in your distro, GDM3 lets you choose classic X
+# server instead of wayland from your login screen, which might help.
+# I'm not currently running wayland or GNOME precisely because I want
+# things like xdotool to work, so if you have success here (even if it
+# requires using a different program from xdotool), please report
+# back.  If wayland reaches the point where I can do this kind of
+# thing with it, I'm open to using it.
+
+# Note that reconcile is quite slow.  That makes this workflow
+# painful, which is not the fault of this script.  This script eases
+# the pain.  It just doesn't eliminate it.  I suspect if we clear out
+# 10 years worth of old data it might help.
+
+finances=${OTS_DIR}/finances
+qb=${finances}/query-beancount/query-beancount
+inotify-hookable -r -w ${finances} -C "beancount=${qb} reconcile" &
+inotify-hookable -f /tmp/reconcile.html -c "xdotool search --name Reconcile key --clearmodifiers 'CTRL+R'"
