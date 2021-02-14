@@ -142,6 +142,7 @@ class Reconciler():
 
         while(not tx1.done() or not tx2.done()):
             row_class = "rowEven" if len(rows) % 2 == 0 else "rowed"
+            top = True # add to top of page?
             if tx1.done():
                 col1 = '<font color="red">%s</font>' % tx2.curr().as_beancount()
                 col2 = tx2.curr().html
@@ -151,6 +152,7 @@ class Reconciler():
                 col2 = '<font color="red">%s</font>' % tx1.curr().as_beancount()
                 tx1.next()
             elif tx1.curr()['amount'] == tx2.curr()['amount']:
+                top = False
                 col1 = tx1.curr().html()
                 col2 = tx2.curr().html()
                 tx1.next()
@@ -166,7 +168,14 @@ class Reconciler():
             dat = {'row_class': row_class,
                    'col1': col1,
                    'col2': col2}
-            rows.append(dat)
+
+            # Add matched transactions to the bottom of the page, and
+            # unmatched to the top, so they'll get noticed easier and
+            # not require scrolling.
+            if top:
+                rows = [dat] + rows
+            else:
+                rows.append(dat)
 
         # Render and write it out
         body_dat = {'date': date,

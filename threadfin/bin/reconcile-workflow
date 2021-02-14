@@ -9,10 +9,9 @@
 # files triggers changes in my browser view, so I can make fast
 # progress.
 
-# Note that to autorefresh the browser, you need to manually "firefox
-# /tmp/reconcile.html" before this so that firefox is already visiting
-# the file, and it only works if that tab is currently focused in
-# firefox.
+# Note that to autorefresh the browser firefox must already be
+# visiting the file, and it only works if that tab is currently
+# focused in firefox.
 
 # Note that this relies on xdotool, which means it relies on the x
 # server.  If you have a modern GNOME system, you might not be using
@@ -34,5 +33,7 @@
 finances=${OTS_DIR}/finances
 qb=${finances}/query-beancount/query-beancount
 refresh_cmd="xdotool search --name 'Reconcile — Mozilla Firefox' key --clearmodifiers 'CTRL+R'"
+touch /tmp/reconcile.html
+firefox /tmp/reconcile.html
 inotify-hookable -r -w ${finances} -C "beancount=${qb} reconcile" &
 inotify-hookable -f /tmp/reconcile.html -c "${refresh_cmd}"
