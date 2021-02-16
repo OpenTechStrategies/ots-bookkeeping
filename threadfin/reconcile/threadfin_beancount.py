@@ -58,7 +58,16 @@ class Transaction(dict):
     def as_beancount(self):
         """Return string with this transaction as a beancount entry."""
         payee = getattr(self.tx, 'narration', '')
-        comment = getattr(self.tx, 'category', '')
+
+        if hasattr(self.tx, 'category'):
+           comment = self.tx.category
+        elif 'comment' in self.tx.meta:
+            comment = self.tx.meta['comment']
+        else:
+            comment = ""
+        # meta = self.tx.meta['comment']
+        # comment = getattr(self.tx, 'category', meta)
+
         narration = ''
 
         payer = "Karl"

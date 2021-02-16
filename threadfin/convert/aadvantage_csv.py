@@ -19,12 +19,14 @@ matter much here.
 
 import csv
 import io
+import pprint
 import sys
 
 import util as u
 import statement
 import transaction
 
+pp = pprint.PrettyPrinter(indent=4).pprint
 
 class UnimplementedError(Exception):
     pass

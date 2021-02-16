@@ -30,7 +30,7 @@ class Account(dict):
     ledger_accounts -=> Assets:Checking etc
     ledger_fname -=> The name of the beancount file
     name -=> A string like 'main' or 'chase' that is the name of this account
-    reg -=> the register for this account
+    reg -=> the beancount register for this account
     txs -=> the transactions in that register
 
     """
@@ -65,6 +65,22 @@ class Account(dict):
                 self.date_txs(date),
                 key=lambda k: k['amount'],
                 reverse=True))
+
+    def get_similar_txs(self, tx):
+        """Return transactions similar to tx."""
+
+        ret = []
+        for t in self['reg'].get_txs():
+            if (t.tx.date < tx.tx.date or
+                not t.hits_accounts(self['ledger_accounts'])
+                ):
+                continue
+            t.calc_amount(self['ledger_accounts'])
+            if tx['amount'] == t['amount']:
+                ret.append(t.as_beancount())
+                ret.append(t.html())
+                continue
+        return ret
 
     def winnow_entries(self):
         """Winnow entries that don't touch the checking account.  For ones
@@ -144,26 +160,35 @@ class Reconciler():
             row_class = "rowEven" if len(rows) % 2 == 0 else "rowed"
             top = True # add to top of page?
             if tx1.done():
-                col1 = '<font color="red">%s</font>' % tx2.curr().as_beancount()
-                col2 = tx2.curr().html
+                print("col 1 done")
+                col1 = "<br>".join(self.ac1.get_similar_txs(tx2.curr()))
+                col2 = '<font color="red">%s</font>' % tx2.curr().as_beancount()
+                col2 += tx2.curr().html()
                 tx2.next()
             elif tx2.done():
-                col1 = tx1.curr().html
-                col2 = '<font color="red">%s</font>' % tx1.curr().as_beancount()
+                print("col 2 done")
+                col1 = '<font color="red">%s</font>' % tx1.curr().as_beancount()
+                col1 += f'<br />{tx1.curr().html()}'
+                col2 = "<br>".join(self.ac2.get_similar_txs(tx1.curr()))
                 tx1.next()
             elif tx1.curr()['amount'] == tx2.curr()['amount']:
+                print("col1 == col2")
                 top = False
                 col1 = tx1.curr().html()
                 col2 = tx2.curr().html()
                 tx1.next()
                 tx2.next()
             elif tx1.curr()["amount"] > tx2.curr()["amount"]:
-                col1 = tx1.curr().html()
-                col2 = '<font color="red">%s</font>' % tx1.curr().as_beancount()
+                print("col1 > col2")
+                col1 = '<font color="red">%s</font>' % tx1.curr().as_beancount()
+                col1 += f'<br />{tx1.curr().html()}'
+                col2 = "<br>".join(self.ac2.get_similar_txs(tx1.curr()))
                 tx1.next()
-            elif tx2.curr()["amount"] > tx1.curr()["amount"]:
-                col1 = '<font color="red">%s</font>' % tx2.curr().as_beancount()
-                col2 = tx2.curr().html()
+            elif tx1.curr()["amount"] < tx2.curr()["amount"]:
+                print("col1 < col2")
+                col1 = tx2.curr().html()
+                col1 = "<br>".join(self.ac1.get_similar_txs(tx2.curr()))
+                col2 = '<font color="red">%s</font>' % tx2.curr().as_beancount()
                 tx2.next()
             dat = {'row_class': row_class,
                    'col1': col1,

@@ -32,10 +32,13 @@
 
 finances=${OTS_DIR}/finances
 qb=${finances}/query-beancount/query-beancount
+convert_cmd="threadfin convert ${finances}/statements"
 reconcile_cmd="${qb} reconcile"
 refresh_cmd="xdotool search --name 'Reconcile — Mozilla Firefox' key --clearmodifiers 'CTRL+R'"
 
-echo ${reconcile_cmd}
+echo "${convert_cmd}"
+${convert_cmd}
+echo "${reconcile_cmd}"
 ${reconcile_cmd}
 firefox /tmp/reconcile.html
 inotify-hookable -r -w ${finances} -C "beancount=${qb} reconcile" &

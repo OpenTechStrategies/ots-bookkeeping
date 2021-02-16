@@ -151,7 +151,8 @@ def get_custom(direc):
     yaml_fname = os.path.join(direc, "threadfin.yaml")
     if os.path.exists(yaml_fname):
         with open(yaml_fname) as fh:
-            custom.update(yaml.load(fh, Loader=yaml.Loader))
+            update = yaml.load(fh, Loader=yaml.Loader)
+            custom.update(update)
     return custom
 
 # This module lets us operate on statements
@@ -165,6 +166,7 @@ def cli(directory, config=None):
 
     direc = directory
 
+    # Get threadfin.yaml customization
     custom = get_custom(direc)
 
     statements = Statements(direc, custom)
