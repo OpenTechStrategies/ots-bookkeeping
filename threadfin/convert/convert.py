@@ -159,9 +159,8 @@ def get_custom(direc):
 
 
 @click.command()
-@click.option('--config', default="config.yaml", help="config file")
 @click.argument('directory')
-def cli(directory, config=None):
+def cli(directory):
     """Output a statement as a beancount ledger, along with balance assertions."""
 
     direc = directory
