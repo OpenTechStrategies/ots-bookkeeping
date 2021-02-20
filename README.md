@@ -27,3 +27,13 @@ automatically split a posting among multiple parties.
 threadfin is a set of tools that make beancount easier.  It consists
 of several subtools, all of which can be accessed via `threadfin
 TOOLNAME`.  See `threadfin/README.mdwn` for more information.
+
+## ots-generate-1099, fill-1099
+
+`fill-1099` is a script for arranging payment information properly on
+a standard U.S. 1099-MISC PDF form.  The script knows the layout: you
+pass in the payee and payment data and it takes care of the rest.
+
+`ots-generate-1099` is an OTS-specific driver for `fill-1099`.
+Usually you would expect to be running `ots-generate-1099`, rather
+than running `fill-1099` directly.
