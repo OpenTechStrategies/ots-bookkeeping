@@ -33,12 +33,16 @@ PAYEE_ADDR_STREET="${3}"
 PAYEE_ADDR_LOCATION="${4}"
 AMOUNT="${5}"
 
+# Strip any ", LLC" off of the payee, because when we look things
+# up internally that wouldn't be included on the key.
+PAYEE_PLAIN=`echo -n ${PAYEE} | sed -e 's/, LLC$//'`
+
 # Transform "Jane Random" into "Jane_Random".
 # This should usually work.  If it ever doesn't, we'll fix it.
-PERSONNEL_NAME=`echo "${PAYEE}" | sed -e "s/ /_/"`
+PERSONNEL_NAME=`echo "${PAYEE_PLAIN}" | sed -e "s/ /_/"`
 
 # Transform "Jane Random" into "jane-random".
-OUTPUT_NAME=`echo "${PAYEE}" | sed -e "s/ /-/" | awk '{print tolower($0)}'`
+OUTPUT_NAME=`echo "${PAYEE_PLAIN}" | sed -e "s/ /-/" | awk '{print tolower($0)}'`
 
 FILL_1099=${OTS_BOOKKEEPING_DIR}/fill-1099
 
