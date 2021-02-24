@@ -10,19 +10,21 @@
 #                   "5000.00"                 \
 #
 # Copyright (c) 2020, 2021 Open Tech Strategies, LLC
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # General Public License for more details.
-# 
+#
 # If you did not receive a copy of the GNU General Public License
 # along with this program, see <http://www.gnu.org/licenses/>.
+
+set -e
 
 TAX_YEAR="${1}"
 PAYEE="${2}"
@@ -94,4 +96,8 @@ ${FILL_1099}                                             \
     f1099msc--${TAX_YEAR}.pdf
 
 rm $$-ots-address.txt
-evince "${OUTPUT_FILE}" &
+if [ -f "${OUTPUT_FILE}" ]; then
+    evince "${OUTPUT_FILE}" &
+else
+    echo "Something went wrong.  ${OUTPUT_FILE} wasn't created."
+fi
