@@ -222,9 +222,12 @@ class Reconciler():
         with open(fname, 'w') as fh:
             fh.write(self.web_page(date))
 
-
+OTS_BOOKKEEPING_DIR = os.getenv("OTS_BOOKKEEPING_DIR")
+if OTS_BOOKKEEPING_DIR is None:
+    OTS_BOOKKEEPING_DIR = "."   
+    
 @click.command()
-@click.option('--config', default="/usr/local/src/ots-bookkeeping/threadfin/examples/config_samples/setupsample.yaml", help="config file")
+@click.option('--config', default=os.path.join(OTS_BOOKKEEPING_DIR, "threadfin/examples/config_samples/setupsample.yaml"), help="config file")
 @click.option('--date', help="Check a day's transactions against bank records")
 @click.option('--templates', help="Template directory")
 @click.argument('account', nargs=2)
