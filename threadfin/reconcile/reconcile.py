@@ -222,9 +222,7 @@ class Reconciler():
         with open(fname, 'w') as fh:
             fh.write(self.web_page(date))
 
-OTS_BOOKKEEPING_DIR = os.getenv("OTS_BOOKKEEPING_DIR")
-if OTS_BOOKKEEPING_DIR is None:
-    OTS_BOOKKEEPING_DIR = "."   
+OTS_BOOKKEEPING_DIR = os.getenv("OTS_BOOKKEEPING_DIR" default = ".")
     
 @click.command()
 @click.option('--config', default=os.path.join(OTS_BOOKKEEPING_DIR, "threadfin/examples/config_samples/setupsample.yaml"), help="config file")
