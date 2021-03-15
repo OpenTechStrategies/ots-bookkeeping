@@ -3,17 +3,17 @@
 # ots-bean-check: Run OTS-specific checks on a Beancount file.
 #
 # Copyright (C) 2020  Open Tech Strategies, LLC
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -70,12 +70,12 @@ def check_date_order(input):
             last_int = this_int
     return num_problems
 
+
 def main():
     infile = None
 
     try:
-        (opts, args) = getopt.getopt(sys.argv[1:], "h?",
-                                     [ "help", "usage" ])
+        (opts, args) = getopt.getopt(sys.argv[1:], "h?", ["help", "usage"])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err))
         sys.stderr.write("\n")
@@ -92,10 +92,10 @@ def main():
 
     with open(infile) as f:
         num_problems = check_date_order(f)
-    
+
     if num_problems > 0:
         sys.exit(1)
 
 
-if __name__ == '__main__':
-  main()
+if __name__ == "__main__":
+    main()
