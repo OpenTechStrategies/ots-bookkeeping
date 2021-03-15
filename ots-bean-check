@@ -2,7 +2,7 @@
 
 # ots-bean-check: Run OTS-specific checks on a Beancount file.
 #
-# Copyright (C) 2020  Open Tech Strategies, LLC
+# Copyright (C) 2020, 2021  Open Tech Strategies, LLC
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -22,7 +22,13 @@ Run OTS-specific checks on a Beancount file.
 
 Usage: './ots-bean-check foo.beancount'
 
-Currently, all this does is check the date ordering of entries.
+Or more specifically:
+
+Usage: './ots-bean-check --date foo.beancount'
+Usage: './ots-bean-check --quote foo.beancount'
+
+Currently, all this does is check the date ordering of entries or that our
+quotes are correct.
 
 If you use beancount.el, this is meant to be `beancount-check-program'; see
 https://github.com/beancount/beancount/blob/master/editors/emacs/beancount.el
@@ -38,64 +44,115 @@ for more information.  You can set it up in your .emacs something like this:
   (add-to-list 'auto-mode-alist '(".*\\.beancount" . beancount-mode))
 """
 
-import sys
+from pathlib import Path
 import re
+import sys
+from typing import List, Tuple
+import click
 
-# There's some newer Python library James likes to use for
-# command-line programs, that handles option-parsing and
-# various other things.  I don't remember what it is, so for
-# now this uses getopt, but I'm happy to switch.
-import getopt
+VERBOSE = False
 
 # As we add functionality to this program, functions like this will
 # stop printing errors to stderr, and raise exceptions or return lists
 # of error points.  Furthermore, they'll take some kind of Beancount
-# object as input.  But all that is in the future.  For now, this
-# program does one thing, so this function just does that one thing.
-def check_date_order(input):
+# object as input.  But all that is in the future.
+
+
+def check_beancount_cli(beancount: Tuple[str]) -> List[Path]:
+    """Make sure we have params and turn them into paths"""
+    ret = []
+
+    if len(beancount) == 0:
+        sys.exit("ERROR: one or more arguments (beancount files) are required")
+
+    for fname in beancount:
+        ret.append(Path(fname))
+    return ret
+
+
+def check_date_order(fname: Path) -> int:
     """Print an error to stderr for every out-of-order date from INPUT.
     A date is out-of-order if it is earlier than the date preceding it.
     Return the number of out-of-order dates (thus, zero if none)."""
+    if VERBOSE:
+        print("Checking date order of %s" % fname)
+    warn_type = "DATE-ORDER:"
+    line_no = 0
     date_re = re.compile("^([0-9]{4})[-/]([0-9]{2})[-/]([0-9]{2})\\s+txn\\s+")
     num_problems = 0
     last_int = 0
-    for line in input:
+    for line in fname.read_text().split("\n"):
+        line_no += 1
         line = line.strip()
         m = date_re.match(line)
         if m is not None:
             this_int = int(m.group(1) + m.group(2) + m.group(3))
             if this_int < last_int:
                 num_problems += 1
-                sys.stderr.write("DATE-ORDER WARNING: %s\n" % line)
+                sys.stderr.write(f"{fname}:{line_no} {warn_type} {line}\n")
             last_int = this_int
     return num_problems
 
 
-def main():
-    infile = None
+def check_quotes(fname: Path) -> int:
+    """Print an error to stderr for every quote problem in INPUT.
 
-    try:
-        (opts, args) = getopt.getopt(sys.argv[1:], "h?", ["help", "usage"])
-    except getopt.GetoptError as err:
-        sys.stderr.write(str(err))
-        sys.stderr.write("\n")
-        sys.exit(1)
-    for opt, optarg in opts:
-        if opt in ("-h", "-?", "--help", "--usage"):
-            print(__doc__)
-            sys.exit(0)
-    if len(args) < 1:
-        sys.stderr.write("ERROR: one argument (a beancount file) is required\n")
-        sys.exit(1)
+    Check for:
+         * "" "foo"
+         * transaction lines with only one set of quotes
+    """
+    if VERBOSE:
+        print("Checking quotes of %s" % fname)
+    num_probs = 0
+    line_no = 0
+    regexes = [re.compile(r'"" "')]
+    for line in fname.read_text().split("\n"):
+        line_no += 1
+        if not line.startswith("20"):
+            continue
+        for reg in regexes:
+            if reg.search(line):
+                num_probs += 1
+                warn_type = "BLANK PAYEE:"
+                sys.stderr.write(f"{fname}:{line_no} {warn_type} {line}\n")
+        if len((line + " ").split('"')) != 5:
 
-    infile = args[0]
+            # skip non-transaction lines
+            parts = line.split(" ")
+            if parts[1] != "txn" and parts[1] != "*" and parts[1] != "!":
+                continue
+            num_probs += 1
+            warn_type = "QUOTE COUNT:"
+            sys.stderr.write(f"{fname}:{line_no} {warn_type} {line}\n")
 
-    with open(infile) as f:
-        num_problems = check_date_order(f)
+    return num_probs
 
-    if num_problems > 0:
-        sys.exit(1)
+
+@click.command()
+@click.option("--date", is_flag=True, help="check date order")
+@click.option("--quote", is_flag=True, help="check quote formatting")
+@click.option("--verbose", "-v", is_flag=True)
+@click.argument("beancount", nargs=-1)
+def cli(beancount: Tuple[str], date: bool, quote: bool, verbose: bool) -> None:
+    global VERBOSE
+    if verbose:
+        VERBOSE = True
+
+    beanpaths = check_beancount_cli(beancount)
+    num_probs = 0
+
+    # If user specifies no tests, run them all, otherwise only do the ones the
+    # user specified.
+    do_all = False
+    if date or bool:
+        do_all = True
+
+    for beanfile in beanpaths:
+        if date or do_all:
+            num_probs += check_date_order(beanfile)
+        if quote or do_all:
+            num_probs += check_quotes(beanfile)
 
 
 if __name__ == "__main__":
-    main()
+    cli()
