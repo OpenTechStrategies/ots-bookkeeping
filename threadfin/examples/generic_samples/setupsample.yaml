@@ -1,0 +1,20 @@
+
+template_dir: "XX_PATH_TO_OTS-BOOKKEEPING_XX/threadfin/reconcile/templates"
+
+accounts: [
+{'name': 'main',
+'ledger_file': "XX_PATH_TO_OTS-BOOKKEEPING_XX/threadfin/examples/generic_samples/sample.beancount"
+},
+
+{'name': 'chase',
+'ledger_file': "XX_PATH_TO_OTS-BOOKKEEPING_XX/threadfin/examples/generic_samples/ccsample.beancount"
+},
+
+]
+
+
+reconcile: [
+{ 'chase':['Assets:BofA:Checking'],
+'main': ['Assets:BofA:Checking']
+},
+]
