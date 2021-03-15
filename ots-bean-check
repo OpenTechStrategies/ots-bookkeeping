@@ -66,7 +66,7 @@ def check_date_order(input):
             this_int = int(m.group(1) + m.group(2) + m.group(3))
             if this_int < last_int:
                 num_problems += 1
-                sys.stderr.write("WARNING: %s\n" % line)
+                sys.stderr.write("DATE-ORDER WARNING: %s\n" % line)
             last_int = this_int
     return num_problems
 
