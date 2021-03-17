@@ -7,6 +7,7 @@ import time
 from typing import Any, Dict, Optional, Union, cast
 
 import yaml
+import mustache
 from dateutil import parser as dateparse
 from moneyed import Money  # type: ignore
 
@@ -40,7 +41,6 @@ def err(msg: str) -> None:
 
 def get_config(fname: str) -> Dict[str, Any]:
     """Grab config.yaml, parse and return"""
-    import mustache
 
     with open(fname) as fh:
         settings = yaml.safe_load(fh.read())
