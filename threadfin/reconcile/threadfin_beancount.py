@@ -1,22 +1,23 @@
 """
 Routines related to beancount files.
 """
+import io
 import math
-import util as u
-import sys
-import register
-import subprocess
+import os
+import pprint
 import re
+import subprocess
+import sys
 
 import beancount
+import mustache
+import petl as etl
+import register
+import util as u
 from beancount import loader
 from dateutil import parser as dateparse
-import io
 from money import Money
-import mustache
-import os
-import petl as etl
-import pprint
+
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 
@@ -24,7 +25,7 @@ class UnimplementedError(Exception):
     pass
 
 
-class OpenableIOString():
+class OpenableIOString:
     def __init__(self, in_string, byte=True):
         """PETL expects an openable file-like object, but all we have is an
         iostring.  Rather than write it to disk and then call PETL to
@@ -57,25 +58,29 @@ class Transaction(dict):
 
     def as_beancount(self):
         """Return string with this transaction as a beancount entry."""
-        payee = getattr(self.tx, 'narration', '')
+        payee = getattr(self.tx, "narration", "")
 
-        if hasattr(self.tx, 'category'):
-           comment = self.tx.category
-        elif 'comment' in self.tx.meta:
-            comment = self.tx.meta['comment']
+        if hasattr(self.tx, "category"):
+            comment = self.tx.category
+        elif "comment" in self.tx.meta:
+            comment = self.tx.meta["comment"]
         else:
             comment = ""
         # meta = self.tx.meta['comment']
         # comment = getattr(self.tx, 'category', meta)
 
-        narration = ''
+        narration = ""
 
         payer = "Karl"
         if payee[-4:] in "4082 ":
             payer = "James"
 
         payee_xlation = {
-            r"^Amazon Web Services Aws.Amazon.CO": ["Amazon Web Services", "AWS", "split"],
+            r"^Amazon Web Services Aws.Amazon.CO": [
+                "Amazon Web Services",
+                "AWS",
+                "split",
+            ],
             r"^Amtrak .Com ": ["Amtrak", "", ""],
             r"^Amtrak Hotels ": ["Amtrak Hotels", "", ""],
             r"^Digitalocean.Com Digitalocean. NY.*7681": ["Digital Ocean", "", "split"],
@@ -84,7 +89,7 @@ class Transaction(dict):
             r"^Lyft \*Ride": ["Lyft", "", ""],
             r"^Rimu Hosting Cambridge": ["Rimu", "", "split"],
             r"^Twilio .* CA ": ["Twilio", "", "split"],
-            r"^United [0-9]+ 800.*TX": ["United Airlines", "", ""]
+            r"^United [0-9]+ 800.*TX": ["United Airlines", "", ""],
         }
 
         # Split means "split this expense between Karl and James"
@@ -102,24 +107,26 @@ class Transaction(dict):
         # pennies, but I don't really recall, and it's not worth
         # solving.
         if split:
-            half = float(self['amount'].amount) / 2.0
+            half = float(self["amount"].amount) / 2.0
             up = math.ceil(half * 100) / 100  # round up
             down = math.floor(half * 100) / 100  # round down
         else:
             up = 0
-            down = self['amount'].amount
+            down = self["amount"].amount
 
         if payer == "James":
             up, down = down, up
 
-        h = {'date': self.tx.date,
-             'payee': payee,
-             'narration': narration,
-             'comment': comment,
-             'e_karl': down * -1,
-             'e_james': up * -1,
-             'a_karl': down,
-             'a_james': up}
+        h = {
+            "date": self.tx.date,
+            "payee": payee,
+            "narration": narration,
+            "comment": comment,
+            "e_karl": down * -1,
+            "e_james": up * -1,
+            "a_karl": down,
+            "a_james": up,
+        }
         b = """{date} txn "{payee}" "{narration}"
   comment: "{comment}"
   Expenses:Karl              {e_karl} USD
@@ -127,24 +134,26 @@ class Transaction(dict):
   Assets:Checking:Karl       {a_karl} USD
   Assets:Checking:James      {a_james} USD
 
-""".format(**h)
+""".format(
+            **h
+        )
 
         ret = "\n".join([l for l in b.split("\n") if " 0 USD" not in l])
-        ret = ret.replace(' ', r'&nbsp;').replace("\n", "<br />\n")
+        ret = ret.replace(" ", r"&nbsp;").replace("\n", "<br />\n")
         return ret.strip()
 
     def dump(self):
         entry = self.tx
         ret = ""
         for d in dir(entry):
-            if d.startswith('_'):
+            if d.startswith("_"):
                 continue
             if "__call__" in dir(entry.__getattribute__(d)):
                 continue
             ret += "%s: %s\n" % (d, entry.__getattribute__(d))
         print(ret)
         return ret
-        return("{0.date}".format(entry))
+        return "{0.date}".format(entry)
 
     def get_postings(self, accounts):
         "Return a list of postings that match any of the account names in list ACCOUNTS"
@@ -182,27 +191,40 @@ class Transaction(dict):
     def html(self):
         # Grab all the metadata fields except the ones whose keys
         # start with underscore and handle linebreaks
-        meta = [{'item': "%s: %s" % (k, str(self.tx.meta[k]).replace(
-            "\n", "<br>"))} for k in self.tx.meta if not k.startswith('_')]
+        meta = [
+            {"item": "%s: %s" % (k, str(self.tx.meta[k]).replace("\n", "<br>"))}
+            for k in self.tx.meta
+            if not k.startswith("_")
+        ]
 
         # Render and return
         return mustache.render(
-            settings['templates'],
+            settings["templates"],
             "beancount_tx",
             {
-                'amount': self["amount"].amount,
-                'meta': meta,
-                'narration': self.tx.narration,
-                'payee': self.tx.payee,
-                'payment_direction': "to" if self["amount"].amount < 0 else "from"})
+                "amount": self["amount"].amount,
+                "meta": meta,
+                "narration": self.tx.narration,
+                "payee": self.tx.payee,
+                "payment_direction": "to" if self["amount"].amount < 0 else "from",
+            },
+        )
 
     def calc_amount(self, accounts):
         """Set self['amount'] to the calculated amount in the postings we care
         about."""
-        self['amount'] = 0
+        self["amount"] = 0
         for account in accounts:
-            self['amount'] += Money(sum(
-                [p.units.number for p in self.tx.postings if p.account.startswith(account)]), currency="USD")
+            self["amount"] += Money(
+                sum(
+                    [
+                        p.units.number
+                        for p in self.tx.postings
+                        if p.account.startswith(account)
+                    ]
+                ),
+                currency="USD",
+            )
 
 
 def get_register(account):
@@ -225,8 +247,7 @@ class Register(register.Register):
         register.Register.__init__(self, account)
 
         # Use beancount's loader to load our entries
-        entries, self.errors, self.options = loader.load_file(
-            account['ledger_file'])
+        entries, self.errors, self.options = loader.load_file(account["ledger_file"])
 
         # Entries come sorted from the beancount loader, so let's
         # just save them and be happy.
@@ -238,8 +259,10 @@ class Register(register.Register):
     def get_txs(self, date=None):
         if not date:
             return [
-                Transaction(e) for e in self if isinstance(
-                    e, beancount.core.data.Transaction)]
+                Transaction(e)
+                for e in self
+                if isinstance(e, beancount.core.data.Transaction)
+            ]
 
         if isinstance(date, type("")):
             date = dateparse.parse(date).date()
@@ -264,7 +287,8 @@ class Register(register.Register):
         lines = []
         for account in self.accounts:
             query = "SELECT id, date, account, position, balance WHERE account~'%s'" % (
-                account)
+                account
+            )
             query = u.bean_query(self.fname, query).split("\n")[2:]
             if not lines:
                 lines = query
@@ -282,8 +306,10 @@ class Register(register.Register):
 
     def load_txs(self):
         """Load transactions into the register."""
-        query = "SELECT id, date, account, payee, position, balance WHERE account~'%s'" % (
-            self.account)
+        query = (
+            "SELECT id, date, account, payee, position, balance WHERE account~'%s'"
+            % (self.account)
+        )
         csv = u.bean_query_csv(self.fname, query)
         reg = etl.fromcsv(OpenableIOString(csv))
 
@@ -298,9 +324,9 @@ class Register(register.Register):
             row_dict = {}
             for i in range(len(headers)):
                 row_dict[headers[i]] = row[i].strip()
-            row_dict['date'] = dateparse.parse(row_dict['date'])
-            a, c = re.split(' +', row_dict['position'])
-            row_dict['amount'] = Money(a, c)
+            row_dict["date"] = dateparse.parse(row_dict["date"])
+            a, c = re.split(" +", row_dict["position"])
+            row_dict["amount"] = Money(a, c)
             self.append(transaction.Transaction(row_dict))
 
     def parse_line(self, line):
@@ -308,15 +334,16 @@ class Register(register.Register):
 
         Returns a dict with date and amount keys."""
 
-        parts = [t for t in line.split(' ') if t]
+        parts = [t for t in line.split(" ") if t]
         if len(parts) != 6:
             print(line)
             print(parts)
         return {}
         sys.exit()
         return {
-            'id': parts[0],
-            'date': dateparse.parse(parts[1]),
-            'account': parts[2],
-            'amount': parts[3],
-            'total': parts[4]}
+            "id": parts[0],
+            "date": dateparse.parse(parts[1]),
+            "account": parts[2],
+            "amount": parts[3],
+            "total": parts[4],
+        }

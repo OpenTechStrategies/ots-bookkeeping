@@ -2,9 +2,11 @@
 """
 Model a register of entries.
 """
+import pprint
+
 import util as u
 from transaction import Transactions
-import pprint
+
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 
@@ -33,15 +35,16 @@ class Register(Transactions):
 
         if str(type(self)) == "<class 'register.Register'>":
             raise UninheritedError(
-                "Don't call this module directly. Use register.get_register(account)")
+                "Don't call this module directly. Use register.get_register(account)"
+            )
 
-        self.fname = account.get('ledger_file', '')
-        self.accounts = account.get('ledger_accounts', '')
+        self.fname = account.get("ledger_file", "")
+        self.accounts = account.get("ledger_accounts", "")
         self.register_text = self.load_reg_text()
         self.register_lines = [l for l in self.register_text.split("\n") if l]
 
     def get_txs(self, date=None):
-        """"Return the register we've loaded as a set of Transactions.
+        """ "Return the register we've loaded as a set of Transactions.
 
         if DATE is specified, just get transactions from that date.
 
@@ -49,8 +52,7 @@ class Register(Transactions):
         raise UnimplementedError("get_txs not implemented yet")
 
     def register_text(*arg):
-        raise UnimplementedError(
-            "Register text should be overridden by inheritance.")
+        raise UnimplementedError("Register text should be overridden by inheritance.")
 
 
 # We do imports after defining the Register class because the things
