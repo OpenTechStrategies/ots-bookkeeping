@@ -18,7 +18,7 @@ def load_templates(fname: str) -> Dict[str, str]:
     root = tree.getroot()
     if root.tag != "mustache":
         # To avoid a circular import, we don't call u.err
-        sys.stdexit("This isn't an xml file full of mustache templates")
+        sys.exit("This isn't an xml file full of mustache templates")
 
     for template in root:
         xml = "\n".join(
