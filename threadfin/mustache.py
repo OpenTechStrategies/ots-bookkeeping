@@ -1,8 +1,8 @@
 import os
 import sys
-from typing import Any, cast, Dict
+from typing import Any, Dict, cast
 
-import pystache  # type: ignore
+import pystache
 from lxml import etree  # type: ignore
 
 
