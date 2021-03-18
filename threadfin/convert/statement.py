@@ -3,14 +3,16 @@
 Generic statement base class
 """
 
-from transaction import Transactions
-import util as u
-from util import parse_money
-import sys
-import subprocess
 import datetime
 import os
 import pprint
+import subprocess
+import sys
+
+import util as u
+from transaction import Transactions
+from util import parse_money
+
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 # our code
@@ -58,14 +60,14 @@ class Block(dict):
         """
         d = u.parse_date(datestring)
         if self.statement.month == 12 and d.month == 1:
-            return u.parse_date("%s-%s" %
-                                (self.statement.year + 1, d.strftime("%m-%d")))
+            return u.parse_date(
+                "%s-%s" % (self.statement.year + 1, d.strftime("%m-%d"))
+            )
         if self.statement.month == 1 and d.month == 12:
-            return u.parse_date("%s-%s" %
-                                (self.statement.year - 1, d.strftime("%m-%d")))
-        return u.parse_date(
-            "%s-%s" %
-            (self.statement.year, d.strftime("%m-%d")))
+            return u.parse_date(
+                "%s-%s" % (self.statement.year - 1, d.strftime("%m-%d"))
+            )
+        return u.parse_date("%s-%s" % (self.statement.year, d.strftime("%m-%d")))
 
     def re_search(self, string=None, regex=None, entire_match=False):
         """Run the regex search against the string, look for the first group,
@@ -93,14 +95,10 @@ class Block(dict):
             return m.group(0).strip()
 
     def parse(self, *args):
-        self.err(
-            "Generic parse method should be overridden for %s." %
-            self.name)
+        self.err("Generic parse method should be overridden for %s." % self.name)
 
     def validate(self, *args):
-        self.err(
-            "Generic validation method should be overridden for %s." %
-            self.name)
+        self.err("Generic validation method should be overridden for %s." % self.name)
 
 
 class Statement(Transactions):
@@ -164,9 +162,9 @@ class Statement(Transactions):
             self.month = "0"
 
     def as_beancount(self):
-        ret = ''
+        ret = ""
         txn = self if self else self.transactions
-        for tx in sorted(txn, key=lambda tx: tx['date']):
+        for tx in sorted(txn, key=lambda tx: tx["date"]):
             ret += tx.as_beancount()
         return ret
 
@@ -174,26 +172,28 @@ class Statement(Transactions):
         ret = ""
 
         if not account:
-            account = self.custom['accounts']['debit']
+            account = self.custom["accounts"]["debit"]
 
         for date in sorted(self.daily_bal.keys()):
-            ret += ("%s balance %s        %s %s\n" % (date + datetime.timedelta(1),
-                                                      account,
-                                                      self.daily_bal[date].amount,
-                                                      self.daily_bal[date].currency))
+            ret += "%s balance %s        %s %s\n" % (
+                date + datetime.timedelta(1),
+                account,
+                self.daily_bal[date].amount,
+                self.daily_bal[date].currency,
+            )
         return ret
 
     def open_accounts(self):
         # Wrangle open accounts
         accounts = []
-        ca = self.custom['accounts']
-        debit = ca['debit']
-        credit = ca['credit']
+        ca = self.custom["accounts"]
+        debit = ca["debit"]
+        credit = ca["credit"]
         if debit != "Expenses":
             accounts.append(debit)
         if credit != "Expenses":
             accounts.append(credit)
-        accounts.extend(ca.get('other', []))
+        accounts.extend(ca.get("other", []))
         return "\n".join(["2010-01-01 open %s" % o for o in accounts]) + "\n"
 
     def parse(self):
@@ -217,9 +217,9 @@ class Statement(Transactions):
         """Sum all the transactions or just those in a category.  Returns an
         Money type."""
         if category:
-            s = sum([e['amount'] for e in self if e['category'] == category])
+            s = sum([e["amount"] for e in self if e["category"] == category])
         else:
-            s = sum([e['amount'] for e in self])
+            s = sum([e["amount"] for e in self])
         if isinstance(s, type(0)):
             # This only happens if it's zero, but we have to deal with it.
             s = parse_money(s)
@@ -227,10 +227,10 @@ class Statement(Transactions):
 
     def write_beancount(self):
         bc = self.as_beancount()
-        with open(self.beancount_fname, 'w') as fh:
+        with open(self.beancount_fname, "w") as fh:
             fh.write(self.beanfile_preamble)
             fh.write(self.open_accounts())
             fh.write(bc)
         # if u.run_command("bean-check %s" % self.beancount_fname):
-            # u.err("bean-check has errors for %s" % self.beancount_fname)
+        # u.err("bean-check has errors for %s" % self.beancount_fname)
         return bc

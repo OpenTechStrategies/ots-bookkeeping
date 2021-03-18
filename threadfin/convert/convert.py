@@ -30,15 +30,18 @@ which lets you specify who has which debit card.
 
 """
 
-import click
 import datetime
 import os
 import re
 import sys
+
+import click
 import yaml
+
 try:
-    import yaml.CLoader
     import yaml.CDumper
+    import yaml.CLoader
+
     yaml.Loader = yaml.CLoader
     yaml.Dumper = yaml.CDumper
 except ImportError:
@@ -72,7 +75,7 @@ class Statements(dict):
         self.custom = custom
         self.get_loaders()
 
-        self.threadfin = {'statements': {'type': "pdf"}}
+        self.threadfin = {"statements": {"type": "pdf"}}
         threadfin_fname = os.path.join(self.statements_dir, "threadfin.yaml")
         if os.path.exists(threadfin_fname):
             ty = u.get_threadfin_yaml(threadfin_fname)
@@ -87,7 +90,8 @@ class Statements(dict):
         ret = []
         for statement in sorted(self):
             ret.extend(
-                [txn for txn in self[statement].transactions if txn['date'] == date])
+                [txn for txn in self[statement].transactions if txn["date"] == date]
+            )
         return ret
 
     def get_loaders(self):
@@ -95,21 +99,24 @@ class Statements(dict):
         a parser for a type of statement."""
 
         direc, fname = os.path.split(__file__)
-        fnames = u.run_command(
-            "grep -l ^class.*statement.Statement %s/*.py" %
-            direc).strip().split("\n")
+        fnames = (
+            u.run_command("grep -l ^class.*statement.Statement %s/*.py" % direc)
+            .strip()
+            .split("\n")
+        )
 
         # Strip this file from the list of results, trim down to just
         # fname, strip path
-        self.banks = [os.path.split(d)[1][:-3]
-                      for d in fnames if d != os.path.realpath(__file__)]
+        self.banks = [
+            os.path.split(d)[1][:-3] for d in fnames if d != os.path.realpath(__file__)
+        ]
 
     def load(self):
-        ext = self.threadfin['statements']['type']
+        ext = self.threadfin["statements"]["type"]
         for pdfname in sorted(os.listdir(self.statements_dir)):
             if pdfname[0] in ".#" or not pdfname.endswith(ext):
                 continue
-            stub = os.path.splitext(pdfname)[0].replace('_', '/')
+            stub = os.path.splitext(pdfname)[0].replace("_", "/")
             fname = os.path.join(self.statements_dir, pdfname)
             for bank in self.banks:
                 try:
@@ -122,9 +129,7 @@ class Statements(dict):
 
             # Report any error
             if self[stub].bank == "":
-                u.err(
-                    "Error: couldn't match statements to any bank for %s\n" %
-                    fname)
+                u.err("Error: couldn't match statements to any bank for %s\n" % fname)
 
             self[stub].parse()
 
@@ -147,7 +152,7 @@ def get_custom(direc):
     write code to do whatever it wants with this yaml data.
 
     """
-    custom = {'accounts': {'debit': 'Assets:Checking', 'credit': 'Expenses'}}
+    custom = {"accounts": {"debit": "Assets:Checking", "credit": "Expenses"}}
     yaml_fname = os.path.join(direc, "threadfin.yaml")
     if os.path.exists(yaml_fname):
         with open(yaml_fname) as fh:
@@ -155,11 +160,12 @@ def get_custom(direc):
             custom.update(update)
     return custom
 
+
 # This module lets us operate on statements
 
 
 @click.command()
-@click.argument('directory')
+@click.argument("directory")
 def cli(directory):
     """Output a statement as a beancount ledger, along with balance assertions."""
 
@@ -183,8 +189,8 @@ def cli(directory):
     ret = first_statement.beanfile_preamble
     ret += first_statement.open_accounts()
 
-    #ret += 'plugin "beancount.plugins.share_postings" "James Karl"\n'
-    #ret += 'plugin "beancount.plugins.auto_accounts"\n\n'
+    # ret += 'plugin "beancount.plugins.share_postings" "James Karl"\n'
+    # ret += 'plugin "beancount.plugins.auto_accounts"\n\n'
     for date in sorted(statements):
         bc = statements[date].write_beancount()
         if bc:
@@ -192,14 +198,14 @@ def cli(directory):
 
     assertions = statements.printable_assertions() + "\n"
     if assertions.strip():
-        ret += ("\n;;;;;;;;;;;;;;;;;;;;;;;;\n;; Balance assertions\n")
+        ret += "\n;;;;;;;;;;;;;;;;;;;;;;;;\n;; Balance assertions\n"
         ret += assertions
 
     beanfile = os.path.join(direc, "all.beancount")
-    with open(beanfile, 'w') as fh:
+    with open(beanfile, "w") as fh:
         fh.write(ret)
     # if u.run_command("bean-check %s" % beanfile):
-        # u.err("bean-check has errors for %s" % beanfile)
+    # u.err("bean-check has errors for %s" % beanfile)
 
 
 if __name__ == "__main__":
