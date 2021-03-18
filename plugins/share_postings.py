@@ -42,22 +42,10 @@ __copyright__ = (
 )
 __license__ = "GNU GPLv2"
 
-import os
 import re
-import sys
 from typing import Any, Dict, List, Tuple, Union
 
-# If we're running this standalone, we need to import from parent dir
-# of this file.
-if __name__ == "__main__":
-    sys.path.append(os.path.split(os.path.split(os.path.abspath(__file__))[0])[0])
-
-
-from beancount import loader  # type: ignore
-from beancount.core import amount  # type: ignore
-from beancount.core import account, account_types, data, getters, interpolate
-from beancount.parser import options  # type: ignore
-from beancount.query import query, query_render  # type: ignore
+from beancount.core import amount, data, interpolate  # type: ignore
 
 __plugins__ = ("share_postings",)
 
@@ -268,9 +256,3 @@ def share_postings(
         new_entries.append(entry)
 
     return open_entries + new_entries, []
-
-
-if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod()
