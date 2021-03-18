@@ -1,24 +1,28 @@
 """
 Routines related to beancount files.
 """
+import datetime
 import io
 import math
-import os
 import pprint
 import re
-import subprocess
 import sys
+from typing import Any, Dict, List, Optional
 
-import beancount
-import mustache
-import petl as etl
-import register
-import util as u
+import beancount  # type: ignore
+import petl as etl  # type: ignore
 from beancount import loader
 from dateutil import parser as dateparse
-from money import Money
+from moneyed import Money  # type: ignore
+
+import mustache
+import transaction
+import util as u
+from transaction import Transactions
 
 pp = pprint.PrettyPrinter(indent=4).pprint
+
+settings = {}  # type: Dict[str,Any]
 
 
 class UnimplementedError(Exception):
@@ -26,7 +30,7 @@ class UnimplementedError(Exception):
 
 
 class OpenableIOString:
-    def __init__(self, in_string, byte=True):
+    def __init__(self, in_string: str, byte: bool = True) -> None:
         """PETL expects an openable file-like object, but all we have is an
         iostring.  Rather than write it to disk and then call PETL to
         read it, we'll wrap the iostring in this class that implements
@@ -38,25 +42,22 @@ class OpenableIOString:
         the open method.
 
         """
+        self.io: io.IOBase
         if byte:
             self.io = io.BytesIO(in_string.encode("UTF-8"))
         else:
             self.io = io.StringIO(in_string)
 
-    def open(self, *args, **kwargs):
+    def open(self, *args: str, **kwargs: Any) -> io.IOBase:
         return self.io
 
 
-def dump_entry(self):
-    return self
-
-
-class Transaction(dict):
-    def __init__(self, tx):
+class Transaction(Dict[str, Any]):
+    def __init__(self, tx) -> None:
         dict.__init__(self)
         self.tx = tx
 
-    def as_beancount(self):
+    def as_beancount(self) -> str:
         """Return string with this transaction as a beancount entry."""
         payee = getattr(self.tx, "narration", "")
 
@@ -75,6 +76,7 @@ class Transaction(dict):
         if payee[-4:] in "4082 ":
             payer = "James"
 
+        # This stuff definitely should move to a config file somewhere.
         payee_xlation = {
             r"^Amazon Web Services Aws.Amazon.CO": [
                 "Amazon Web Services",
@@ -142,7 +144,7 @@ class Transaction(dict):
         ret = ret.replace(" ", r"&nbsp;").replace("\n", "<br />\n")
         return ret.strip()
 
-    def dump(self):
+    def dump(self) -> str:
         entry = self.tx
         ret = ""
         for d in dir(entry):
@@ -155,7 +157,7 @@ class Transaction(dict):
         return ret
         return "{0.date}".format(entry)
 
-    def get_postings(self, accounts):
+    def get_postings(self, accounts) -> List:
         "Return a list of postings that match any of the account names in list ACCOUNTS"
 
         ret = []
@@ -165,8 +167,8 @@ class Transaction(dict):
                     ret.append(p)
         return ret
 
-    def hits_account(self, account_name):
-        """ACCOUNT_NAME is a string with a (partial) account name
+    def hits_account(self, account_name: str) -> bool:
+        """ACCOUNT_NAME is a (partial) account name
 
         Returns True iff ACCOUNT_NAME appears at the start of at least
         one of the posting accounts.
@@ -176,8 +178,8 @@ class Transaction(dict):
             return True
         return False
 
-    def hits_accounts(self, account_names):
-        """ACCOUNT_NAMES is a list of strings with (partial) account names
+    def hits_accounts(self, account_names: List[str]) -> bool:
+        """ACCOUNT_NAMES is list of (partial) account names
 
         Returns True iff a name in ACCOUNT_NAMES appears at the start
         of at least one of the posting accounts.
@@ -188,7 +190,7 @@ class Transaction(dict):
                 return True
         return False
 
-    def html(self):
+    def html(self) -> str:
         # Grab all the metadata fields except the ones whose keys
         # start with underscore and handle linebreaks
         meta = [
@@ -210,7 +212,7 @@ class Transaction(dict):
             },
         )
 
-    def calc_amount(self, accounts):
+    def calc_amount(self, accounts: List[str]) -> None:
         """Set self['amount'] to the calculated amount in the postings we care
         about."""
         self["amount"] = 0
@@ -227,24 +229,26 @@ class Transaction(dict):
             )
 
 
-def get_register(account):
-    """Returns a Register class for beancount.
-
-    ACCOUNT is a dict with at least a 'ledger_file' field.
-
-    """
-
-    reg = Register(account)
-    if len(reg) == 0:
-        u.err("Register is empty of journal entries.")
-    return reg
-
-
-class Register(register.Register):
+class Register(Transactions):
     """Model a beancount register as a series of Transactions"""
 
-    def __init__(self, account):
-        register.Register.__init__(self, account)
+    def __init__(self, account: Dict[str, Any]) -> None:
+        """ACCOUNT is a dict containing some information about an account:
+
+        It probably has a 'ledger_file' field.  It might have a
+        'ledger_accounts' field.
+
+        'ledger_file' -=> filespec for beancount file
+        'ledger_accounts' -=> a list of asset accounts we care about
+
+        """
+
+        self.fname = account.get("ledger_file", "")
+        self.accounts = account.get("ledger_accounts", "")
+        self.register_text = self.load_reg_text()
+        self.register_lines = [l for l in self.register_text.split("\n") if l]
+
+        Transactions.__init__(self, account)
 
         # Use beancount's loader to load our entries
         entries, self.errors, self.options = loader.load_file(account["ledger_file"])
@@ -253,10 +257,12 @@ class Register(register.Register):
         # just save them and be happy.
         self.extend(entries)
 
-    def get_accounts(self):
+    def get_accounts(self) -> List[beancount.core.data.Open]:
         return [e for e in self if isinstance(e, beancount.core.data.Open)]
 
-    def get_txs(self, date=None):
+    def get_txs(
+        self, date: Optional[datetime.datetime] = None
+    ) -> List[beancount.core.data.Transaction]:
         if not date:
             return [
                 Transaction(e)
@@ -264,12 +270,16 @@ class Register(register.Register):
                 if isinstance(e, beancount.core.data.Transaction)
             ]
 
-        if isinstance(date, type("")):
+        if isinstance(date, str):
             date = dateparse.parse(date).date()
 
         return [e for e in self.get_txs() if e.tx.date == date]
 
-    def load_reg_text(self, start=None, end=None):
+    def load_reg_text(
+        self,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+    ) -> str:
         """Return a string with ledger register entries for the account in
         self.account.  Get the register from beancount and return it
 
@@ -284,16 +294,17 @@ class Register(register.Register):
         if start or end:
             raise UnimplementedError("Start and End not implemented yet")
 
-        lines = []
+        lines = []  # type: List[str]
         for account in self.accounts:
-            query = "SELECT id, date, account, position, balance WHERE account~'%s'" % (
-                account
+            query = (
+                f"SELECT id, date, account, position, balance "
+                "WHERE account~'{account}'"
             )
-            query = u.bean_query(self.fname, query).split("\n")[2:]
+            query_result = u.bean_query(self.fname, query).split("\n")[2:]
             if not lines:
-                lines = query
+                lines = query_result
             else:
-                lines.extend(query[2:])
+                lines.extend(query_result[2:])
 
         # Remove cruft
         # lines = [l for l in lines
@@ -304,7 +315,7 @@ class Register(register.Register):
         ret = "\n".join(lines)
         return ret
 
-    def load_txs(self):
+    def load_txs(self) -> None:
         """Load transactions into the register."""
         query = (
             "SELECT id, date, account, payee, position, balance WHERE account~'%s'"
@@ -319,7 +330,6 @@ class Register(register.Register):
             rows.append(row)
 
         headers = rows[0]
-        row_dicts = []
         for row in rows[1:]:
             row_dict = {}
             for i in range(len(headers)):
@@ -329,7 +339,7 @@ class Register(register.Register):
             row_dict["amount"] = Money(a, c)
             self.append(transaction.Transaction(row_dict))
 
-    def parse_line(self, line):
+    def parse_line(self, line: str) -> Dict[str, Any]:
         """Parse the date and amount out of the register LINE.
 
         Returns a dict with date and amount keys."""
@@ -347,3 +357,16 @@ class Register(register.Register):
             "amount": parts[3],
             "total": parts[4],
         }
+
+
+def get_register(account: Dict[str, Any]) -> Register:
+    """Returns a Register class for beancount.
+
+    ACCOUNT is a dict with at least a 'ledger_file' field.
+
+    """
+
+    reg = Register(account)
+    if len(reg) == 0:
+        u.err("Register is empty of journal entries.")
+    return reg

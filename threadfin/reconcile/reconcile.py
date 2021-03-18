@@ -4,21 +4,14 @@
 
 """
 
-import collections
 import datetime
 import os
 import pprint
-import re
-import subprocess
-import sys
+from typing import List
 
 import click
-import pystache
-from dateutil import parser as dateparse
-from money import Money
 
 import mustache
-import register
 import threadfin_beancount as beancount
 import util as u
 
@@ -36,14 +29,14 @@ class Account(dict):
 
     """
 
-    def __init__(self, account):
+    def __init__(self, account) -> None:
         dict.__init__(self, account)
         self["reg"] = beancount.get_register(self)
         self["txs"] = self["reg"].get_txs()
         self.winnow_entries()
         self.calc_dailies()
 
-    def date_txs(self, date):
+    def date_txs(self, date) -> List:
         """Return a list of transactions on DATE that hit accounts we care about"""
 
         ret = [
@@ -93,7 +86,7 @@ class Account(dict):
         for e in self["txs"]:
             e.calc_amount(self["ledger_accounts"])
 
-    def calc_dailies(self):
+    def calc_dailies(self) -> None:
         """Calc a running total, which we can do because the entries are
         sorted by date.
 
