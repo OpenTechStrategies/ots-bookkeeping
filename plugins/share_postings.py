@@ -37,34 +37,32 @@ A few key differences:
 
 You probably want to symlink this into a beancount/plugins dir.
 """
-__copyright__ = "Copyright (C) 2015-2016  Martin Blais.  Copyright 2018 James Vasile."
+__copyright__ = (
+    "Copyright (C) 2015-2016  Martin Blais.  Copyright 2018, 2021 James Vasile."
+)
 __license__ = "GNU GPLv2"
 
-from os import path
-import logging
 import os
 import re
 import sys
+from typing import Any, Dict, List, Tuple, Union
 
 # If we're running this standalone, we need to import from parent dir
 # of this file.
 if __name__ == "__main__":
     sys.path.append(os.path.split(os.path.split(os.path.abspath(__file__))[0])[0])
-    
-from beancount import loader
-from beancount.core import account
-from beancount.core import account_types
-from beancount.core import amount
-from beancount.core import data
-from beancount.core import getters
-from beancount.core import interpolate
-from beancount.parser import options
-from beancount.query import query
-from beancount.query import query_render
 
-__plugins__ = ('share_postings',)
 
-def get_sharing_info(account, members):
+from beancount import loader  # type: ignore
+from beancount.core import amount  # type: ignore
+from beancount.core import account, account_types, data, getters, interpolate
+from beancount.parser import options  # type: ignore
+from beancount.query import query, query_render  # type: ignore
+
+__plugins__ = ("share_postings",)
+
+
+def get_sharing_info(account: str, members: list[str]) -> Tuple[List[str], str]:
     """
     Args:
       account: a string containing a beancount account name
@@ -115,8 +113,8 @@ def get_sharing_info(account, members):
     """
 
     # Make regex for matching shared postings
-    regex = '(('+'|'.join(map(re.escape, members)) + ")(:\d+)?:?)"
-    regex = re.compile(regex)
+    regex_s = "((" + "|".join(map(re.escape, members)) + ")(:\d+)?:?)"
+    regex = re.compile(regex_s)
 
     # This is the part of the account name that does the sharing.  We
     # need to know it so we can replace it later.
@@ -124,7 +122,7 @@ def get_sharing_info(account, members):
 
     # List of members sharing this posting, with each included a
     # number of times equal to their share
-    sharees = []
+    sharees = []  # type: list[str]
 
     last_end = 0
     matches = list(regex.finditer(account))
@@ -134,15 +132,15 @@ def get_sharing_info(account, members):
         # Start keeping track on the last set of contiguous matches
         # only
         if m.start() != last_end:
-            if i == len(matches)-1:
-                continue # don't match singletons at the end
-            elif i < len(matches)-1 and matches[i+1].start() != m.end():
-                continue # don't match singletons
+            if i == len(matches) - 1:
+                continue  # don't match singletons at the end
+            elif i < len(matches) - 1 and matches[i + 1].start() != m.end():
+                continue  # don't match singletons
             else:
                 shared_notation = ""
                 sharees = []
         last_end = m.end()
-            
+
         # Add to the shared account
         shared_notation += m.groups()[0]
 
@@ -156,15 +154,18 @@ def get_sharing_info(account, members):
             sharees.append(m.groups()[1])
 
     # Remove trailing colon, if any
-    if shared_notation.endswith(':'):
+    if shared_notation.endswith(":"):
         shared_notation = shared_notation[:-1]
 
     if len(sharees) <= 1:
-        return [], ''
-    
+        return [], ""
+
     return (sorted(sharees), shared_notation)
 
-def share_postings(entries, options_map, config):
+
+def share_postings(
+    entries: List[Any], options_map: Dict[str, Any], config: str
+) -> Tuple[List[Union[data.Open, data.Transaction]], List[None]]:
     """Share postings among a number of participants (see module docstring for details).
 
     Args:
@@ -182,8 +183,10 @@ def share_postings(entries, options_map, config):
     elif isinstance(config, (tuple, list)):
         members = config
     else:
-        raise RuntimeError("Invalid plugin configuration: configuration for share_postings "
-                           "should be a string or a sequence.")
+        raise RuntimeError(
+            "Invalid plugin configuration: configuration for share_postings "
+            "should be a string or a sequence."
+        )
 
     # Filter the entries and transform transactions.
     open_entries = []
@@ -192,12 +195,20 @@ def share_postings(entries, options_map, config):
         if isinstance(entry, data.Open):
             sharees, shared_notation = get_sharing_info(entry.account, members)
             if sharees:
-                
+
                 # Create Open directives for shared accounts if necessary.
                 for member in sharees:
                     open_date = entry.date
-                    meta = data.new_metadata('<share_postings>', 0)
-                    open_entries.append(data.Open(meta, open_date, entry.account.replace(shared_notation, member), None, None))
+                    meta = data.new_metadata("<share_postings>", 0)
+                    open_entries.append(
+                        data.Open(
+                            meta,
+                            open_date,
+                            entry.account.replace(shared_notation, member),
+                            None,
+                            None,
+                        )
+                    )
 
                 continue
         if isinstance(entry, data.Transaction):
@@ -208,33 +219,43 @@ def share_postings(entries, options_map, config):
                     new_postings.append(posting)
                     continue
 
-                split_units = amount.Amount(posting.units.number / len(sharees),
-                                            posting.units.currency)
-                
+                split_units = amount.Amount(
+                    posting.units.number / len(sharees), posting.units.currency
+                )
+
                 for member in sharees:
                     subaccount = posting.account.replace(shared_notation, member)
-                    
+
                     # Ensure the modified postings are marked as
                     # automatically calculated, so that the resulting
                     # calculated amounts aren't used to affect inferred
                     # tolerances.
                     meta = posting.meta.copy()
                     meta[interpolate.AUTOMATIC_META] = True
-                    
+
                     # Add a new posting for each member, to an account
                     # with the name of this member.
                     if new_postings and subaccount == new_postings[-1].account:
                         ## Aggregate postings for the same member
-                        new_amount = amount.Amount(new_postings[-1].units.number + split_units.number, posting.units.currency)
-                        new_postings[-1] = posting._replace(meta=meta,
-                                                             account=subaccount,
-                                                             units=new_amount,
-                                                             cost=posting.cost)
+                        new_amount = amount.Amount(
+                            new_postings[-1].units.number + split_units.number,
+                            posting.units.currency,
+                        )
+                        new_postings[-1] = posting._replace(
+                            meta=meta,
+                            account=subaccount,
+                            units=new_amount,
+                            cost=posting.cost,
+                        )
                     else:
-                        new_postings.append(posting._replace(meta=meta,
-                                                             account=subaccount,
-                                                             units=split_units,
-                                                             cost=posting.cost))
+                        new_postings.append(
+                            posting._replace(
+                                meta=meta,
+                                account=subaccount,
+                                units=split_units,
+                                cost=posting.cost,
+                            )
+                        )
 
             # Modify the entry in-place, replace its postings.
             entry = entry._replace(postings=new_postings)
@@ -243,6 +264,8 @@ def share_postings(entries, options_map, config):
 
     return open_entries + new_entries, []
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
