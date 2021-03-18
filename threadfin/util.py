@@ -78,7 +78,7 @@ class Indexable:
     def __iter__(self):
         return iter(self.indexable)
 
-    def next(self):
+    def next(self) -> Optional[Any]:
         if self.done():
             return None
         v = self.indexable[self.current]
@@ -88,7 +88,7 @@ class Indexable:
     def done(self) -> bool:
         return self.current >= self.length
 
-    def curr(self):
+    def curr(self) -> Any:
         return self.indexable[self.current]
 
 
@@ -250,7 +250,7 @@ def pdf2txt(pdfname: str) -> str:
     txtname = os.path.splitext(pdfname)[0] + ".txt"
     if not os.path.exists(txtname):
         run_command("pdftotext -layout %s %s" % (pdfname, txtname))
-        txt = cast(str, slurp(txtname))
+        txt = slurp(txtname)
     return txt
 
 

@@ -1,16 +1,17 @@
 import math
 import re
+from typing import Any, Dict, List, Optional
 
 
-class Transaction(dict):
+class Transaction(Dict[Any, Any]):
     """This is the Transaction class used by statement parsers.  It is not
-    usied by reconcile.  That routine uses the Transaction class in
+    used by reconcile.  That routine uses the Transaction class in
     threadfin_beancount."""
 
-    def __init__(self, *args, **kwargs):
-        dict.__init__(self, *args, **kwargs)
+    def __init__(self, arg: Dict[Any, Any] = {}) -> None:
+        dict.__init__(self, arg)
 
-    def dump(self):
+    def dump(self) -> str:
         try:
             note = self["category"] + " " + self["note"]
         except KeyError:
@@ -24,7 +25,7 @@ class Transaction(dict):
         )
         return str(self) + "\n"
 
-    def html(self):
+    def html(self) -> str:
         category = self["category"]
         if category == "CHECK":
             category += " #%s" % self["number"]
@@ -42,7 +43,7 @@ class Transaction(dict):
         )
         return h
 
-    def as_beancount(self):
+    def as_beancount(self) -> str:
         """Return string with this transaction as a beancount entry."""
         payee = self["note"] if "note" in self else ""
         comment = self["category"] if "category" in self else ""
@@ -120,7 +121,7 @@ class Transaction(dict):
         return b.strip()
 
 
-class Transactions(list):
+class Transactions(List[Transaction]):
     """A list of Transaction instances.
 
     This is just a list we're wrapping in a class so we can add
