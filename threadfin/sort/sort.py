@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 
-import click
-from dateutil import parser as dateparse
+import datetime
 import os
 import re
 import subprocess
+from typing import Dict, List
+
+import click
+from dateutil import parser as dateparse
 
 import util as u
 
 
-def sorted_txs(txs):
-    """TXS is a string containing a portion of a ledger file with entries in it and nothing else.
+def sorted_txs(transactions: str) -> str:
+    """TRANSACTIONS contains a portion of a ledger file with entries in it and
+    nothing else.
 
     Sort the entries and return value."""
-    txs_sorted = {}  # keys are dates hashed to lists of transactions on that effective date
-    txs = txs.split("\n\n")
+    txs_sorted: Dict[datetime.datetime, List[str]]
+    txs_sorted = {}  # keys are dates hashed to lists of txs on that date
+    txs = transactions.split("\n\n")
     for tx in txs:
-        linestart = tx.split(' ')[0]
+        linestart = tx.split(" ")[0]
+
+        # This next if-block is obsolete, right?  Beancount doesn't do
+        # effective dates.  But maybe we should teach it...
         if "=" in linestart:
             # Use effective date if specified
             linestart = linestart.split("=")[1]
+
         d = dateparse.parse(linestart)
         if d not in txs_sorted:
             txs_sorted[d] = []
@@ -32,14 +41,15 @@ def sorted_txs(txs):
     return ret
 
 
-def print_sorted_txs(txs):
-    """TXS is a string containing a portion of a ledger file with entries in it and nothing else.
+def print_sorted_txs(txs: str) -> None:
+    """TXS contains a portion of a ledger file with entries in it and nothing
+    else.
 
     Sort the entries and output to the screen."""
     print(sorted_txs(txs))
 
 
-def sort_beancount_text(beancount_text):
+def sort_beancount_text(beancount_text: str) -> str:
     """BEANCOUNT_TEXT is the contents of a beancount file"""
     ret = ""
     txs = ""
@@ -74,7 +84,7 @@ def sort_beancount_text(beancount_text):
                 # Use effective date if specified
                 linestart = linestart.split("=")[1]
             try:
-                d = dateparse.parse(linestart)
+                dateparse.parse(linestart)
             except ValueError:
                 if txs:
                     ret += sorted_txs(txs)
@@ -117,9 +127,9 @@ def sort_beancount_text(beancount_text):
 
 
 @click.command()
-@click.option('-w', '--write', default=False, is_flag=True)
-@click.argument('infile')
-def cli(infile, write=False):
+@click.option("-w", "--write", default=False, is_flag=True)
+@click.argument("infile")
+def cli(infile: str, write: bool = False) -> None:
     """Sort ledger by effective date.
 
     We assume a ledger in which the first line of transactions start
@@ -141,7 +151,7 @@ def cli(infile, write=False):
         while os.path.exists(f"{infile}.bak{bak_count}"):
             bak_count += 1
         subprocess.call(f"cp {infile} {infile}.bak{bak_count}", shell=True)
-        with open(infile, 'w') as fh:
+        with open(infile, "w") as fh:
             fh.write(ret)
     else:
         print(ret)
