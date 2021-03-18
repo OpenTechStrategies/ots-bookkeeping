@@ -172,9 +172,14 @@ def share_postings(
       entries: A list of directives. We're interested only in the Transaction instances.
       unused_options_map: A parser options dict.
       config: The plugin configuration string.
-    Returns:
-      A list of entries, with potentially more accounts and potentially more
-      postings with smaller amounts.
+
+    Returns a tuple containing:
+
+         * A list of entries, with potentially more accounts and potentially
+           more postings with smaller amounts.
+
+         * None
+
     """
 
     # Validate and sanitize configuration.
