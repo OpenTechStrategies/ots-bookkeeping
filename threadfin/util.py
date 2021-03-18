@@ -318,7 +318,13 @@ def run_command(cmd: str, verbose: bool = False, ignore_error: bool = False) -> 
     return output
 
 
-def slurp(fname: str, decode: str = "utf-8") -> Union[bytes, str]:
+def slurp_bytes(fname: str) -> bytes:
+    with open(fname, "rb") as fh:
+        bytestr = fh.read()
+        return bytestr
+
+
+def slurp(fname: str, decode: str = "utf-8") -> str:
     """Read file named FNAME from disk and return contents as a string.
 
     DECODE is the expected encoding of the file.  This func will
@@ -328,8 +334,6 @@ def slurp(fname: str, decode: str = "utf-8") -> Union[bytes, str]:
     """
     with open(fname, "rb") as fh:
         bytestr = fh.read()
-        if not decode:
-            return bytestr
         try:
             return bytestr.decode(decode)
         except UnicodeDecodeError:
