@@ -7,9 +7,10 @@ import time
 from typing import Any, Dict, Optional, Union, cast
 
 import yaml
-import mustache
 from dateutil import parser as dateparse
 from moneyed import Money  # type: ignore
+
+import mustache
 
 VERBOSE = False
 
