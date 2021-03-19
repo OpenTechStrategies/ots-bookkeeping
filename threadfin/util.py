@@ -5,7 +5,8 @@ import pprint
 import subprocess
 import sys
 import time
-from typing import Any, Dict, Optional, Union, cast
+from typing import (Any, Dict, Iterator, Optional, Sequence, TypeVar, Union,
+                    cast)
 
 import yaml
 from dateutil import parser as dateparse
@@ -19,13 +20,13 @@ pp = pprint.PrettyPrinter(indent=4, width=120).pprint
 pf = pprint.PrettyPrinter(indent=4, width=120).pformat
 
 
-def bean_query(bean_file, query, csv=False):
-    csv = "-f csv" if csv else ""
-    cmd = f'bean-query {csv} {bean_file} "{query}";'
+def bean_query(bean_file: str, query: str, csv: bool = False) -> str:
+    csv_param = "-f csv" if csv else ""
+    cmd = f'bean-query {csv_param} {bean_file} "{query}";'
     return run_command(cmd).strip()
 
 
-def bean_query_csv(bean_file, query):
+def bean_query_csv(bean_file: str, query: str) -> str:
     return bean_query(bean_file, query, True)
 
 
@@ -45,7 +46,7 @@ def get_config(fname: str) -> Dict[str, Any]:
     """Grab config.yaml, parse and return"""
 
     with open(fname) as fh:
-        settings = yaml.safe_load(fh.read())
+        settings = cast(Dict[str, Any], yaml.safe_load(fh.read()))
 
     # If relative dir specified for templates, it's relative to the
     # codebase (e.g. this file).
@@ -66,30 +67,41 @@ def get_threadfin_yaml(fname: str) -> Dict[str, Any]:
     return cast(Dict[str, Any], settings)
 
 
-class Indexable:
-    """Make something like an iterator for an indexable, defined list. The big benefit
-    here is we know how long it is and when it's done without any
-    worries.  We can index it."""
+# In the Indexable class below, we reference Indexable as a type inside the
+# Indexable class.  At that point, it isn't defined yet.  This causes a mypy
+# error, so we reference this TypeVar instead.
+Indexable_T = TypeVar("Indexable_T", bound="Indexable")
 
-    def __init__(self, indexable) -> None:
+
+class Indexable:
+    """An indexable iterator made from a list.
+
+    We can treat this just like an iterator with a known length that we can
+    index.  We can look at the next item without looping.  We could, if we
+    implemented 'prev' also look at the previous item if we want."""
+
+    def __init__(self, indexable: Sequence[Any]) -> None:
         self.length = len(indexable)
         self.current = 0
         self.indexable = indexable
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(self.indexable)
 
     def next(self) -> Optional[Any]:
-        if self.done():
-            return None
-        v = self.indexable[self.current]
+        """Return the next item in the iteration, and advance the current pointer."""
+        ret = self.curr()
         self.current += 1
-        return v
+        return ret
 
     def done(self) -> bool:
+        """Return True unless there are more items left to return."""
         return self.current >= self.length
 
     def curr(self) -> Any:
+        """Return the current item in the sequence."""
+        if self.done():
+            return None
         return self.indexable[self.current]
 
 
