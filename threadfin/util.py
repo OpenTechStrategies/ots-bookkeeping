@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import pprint
 import subprocess
@@ -204,6 +205,29 @@ def int2word(n: int) -> str:
         if b3 > 0:
             nw = ones[b3] + "hundred " + nw
     return nw
+
+
+class OpenableIOString:
+    def __init__(self, in_string: str, byte: bool = True) -> None:
+        """PETL expects an openable file-like object, but all we have is an
+        iostring.  Rather than write it to disk and then call PETL to
+        read it, we'll wrap the iostring in this class that implements
+        open.
+
+        If BYTES is true, we'll encode as a byte stream, otherwise,
+        we'll use stream io.  PETL wants bytes, as it tries to open
+        with 'wb'.  Hmm... maybe we should just encode as needed in
+        the open method.
+
+        """
+        self.io: io.IOBase
+        if byte:
+            self.io = io.BytesIO(in_string.encode("UTF-8"))
+        else:
+            self.io = io.StringIO(in_string)
+
+    def open(self, *args: str, **kwargs: Any) -> io.IOBase:
+        return self.io
 
 
 def parse_date(string: str, ignore_error: bool = False) -> Optional[datetime.date]:
