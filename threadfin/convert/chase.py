@@ -4,11 +4,12 @@ import datetime
 import re
 import sys
 
+from dateutil import parser as dateparse
+
 # Our code
 import statement
 import transaction
 import util as u
-from dateutil import parser as dateparse
 from util import parse_money
 
 rx = {}

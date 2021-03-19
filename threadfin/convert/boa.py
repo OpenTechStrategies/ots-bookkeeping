@@ -5,10 +5,11 @@ Parse bank of America bank statements
 import re
 import sys
 
+from dateutil import parser as dateparse
+
 # Our code
 import statement
 import util as u
-from dateutil import parser as dateparse
 from transaction import Transaction
 from util import parse_money
 
