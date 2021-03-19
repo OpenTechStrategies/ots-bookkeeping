@@ -15,9 +15,7 @@ from dateutil import parser as dateparse
 from moneyed import Money  # type: ignore
 
 import mustache
-import transaction
 import util as u
-from transaction import Transactions
 
 pp = pprint.PrettyPrinter(indent=4).pprint
 
@@ -29,7 +27,9 @@ class UnimplementedError(Exception):
 
 
 class Transaction(Dict[str, Any]):
-    def __init__(self, tx) -> None:
+    """This is a wrapper class around a beancount transaction."""
+
+    def __init__(self, tx: beancount.core.data.Transaction) -> None:
         dict.__init__(self)
         self.tx = tx
 
@@ -133,7 +133,7 @@ class Transaction(Dict[str, Any]):
         return ret
         return "{0.date}".format(entry)
 
-    def get_postings(self, accounts) -> List:
+    def get_postings(self, accounts: List[str]) -> List[str]:
         "Return a list of postings that match any of the account names in list ACCOUNTS"
 
         ret = []
@@ -205,7 +205,7 @@ class Transaction(Dict[str, Any]):
             )
 
 
-class Register(Transactions):
+class Register(List[Transaction]):
     """Model a beancount register as a series of Transactions"""
 
     def __init__(self, account: Dict[str, Any]) -> None:
@@ -223,8 +223,6 @@ class Register(Transactions):
         self.accounts = account.get("ledger_accounts", "")
         self.register_text = self.load_reg_text()
         self.register_lines = [l for l in self.register_text.split("\n") if l]
-
-        Transactions.__init__(self, account)
 
         # Use beancount's loader to load our entries
         entries, self.errors, self.options = loader.load_file(account["ledger_file"])
@@ -292,13 +290,18 @@ class Register(Transactions):
         return ret
 
     def load_txs(self) -> None:
-        """Load transactions into the register."""
+        """Load transactions into the register.
+
+        It appears this code doesnt get called from anywhere in our codebase.
+        It also appears to reference self.account, when that var doesn't exist.
+        Maybe we should remove it."""
+
         query = (
             "SELECT id, date, account, payee, position, balance WHERE account~'%s'"
             % (self.account)
         )
         csv = u.bean_query_csv(self.fname, query)
-        reg = etl.fromcsv(OpenableIOString(csv))
+        reg = etl.fromcsv(u.OpenableIOString(csv))
 
         # Save the rows because we can't reopen our byte stream
         rows = []
@@ -313,7 +316,7 @@ class Register(Transactions):
             row_dict["date"] = dateparse.parse(row_dict["date"])
             a, c = re.split(" +", row_dict["position"])
             row_dict["amount"] = Money(a, c)
-            self.append(transaction.Transaction(row_dict))
+            self.append(Transaction(row_dict))
 
     def parse_line(self, line: str) -> Dict[str, Any]:
         """Parse the date and amount out of the register LINE.
