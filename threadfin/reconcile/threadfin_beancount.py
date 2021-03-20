@@ -275,35 +275,6 @@ class Register(List[Transaction]):
         ret = "\n".join(lines)
         return ret
 
-    def load_txs(self) -> None:
-        """Load transactions into the register.
-
-        It appears this code doesnt get called from anywhere in our codebase.
-        It also appears to reference self.account, when that var doesn't exist.
-        Maybe we should remove it."""
-
-        query = (
-            "SELECT id, date, account, payee, position, balance WHERE account~'%s'"
-            % (self.account)
-        )
-        csv = u.bean_query_csv(self.fname, query)
-        reg = etl.fromcsv(u.OpenableIOString(csv))
-
-        # Save the rows because we can't reopen our byte stream
-        rows = []
-        for row in reg:
-            rows.append(row)
-
-        headers = rows[0]
-        for row in rows[1:]:
-            row_dict = {}
-            for i in range(len(headers)):
-                row_dict[headers[i]] = row[i].strip()
-            row_dict["date"] = dateparse.parse(row_dict["date"])
-            a, c = re.split(" +", row_dict["position"])
-            row_dict["amount"] = Money(a, c)
-            self.append(Transaction(row_dict))
-
     def parse_line(self, line: str) -> Dict[str, Any]:
         """Parse the date and amount out of the register LINE.
 
