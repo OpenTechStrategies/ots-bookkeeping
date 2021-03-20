@@ -7,7 +7,7 @@
 import datetime
 import os
 import pprint
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import click
 
@@ -18,7 +18,7 @@ import util as u
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 
-class Account(dict):
+class Account(Dict[str, Any]):
     """This is a dict.  It has some fields that let it represent an account.
 
     ledger_accounts -=> Assets:Checking etc
@@ -29,14 +29,14 @@ class Account(dict):
 
     """
 
-    def __init__(self, account) -> None:
+    def __init__(self, account: Dict[str, Any]) -> None:
         dict.__init__(self, account)
         self["reg"] = beancount.get_register(self)
         self["txs"] = self["reg"].get_txs()
         self.winnow_entries()
         self.calc_dailies()
 
-    def date_txs(self, date) -> List:
+    def date_txs(self, date: datetime.date) -> List[beancount.Transaction]:
         """Return a list of transactions on DATE that hit accounts we care about"""
 
         ret = [
@@ -48,7 +48,7 @@ class Account(dict):
             tx.calc_amount(self["ledger_accounts"])
         return ret
 
-    def indexable(self, date):
+    def indexable(self, date: datetime.date) -> u.Indexable:
         """Get all the transactions from DATE, sort them, and return them as
         an Indexable.
 
@@ -61,7 +61,7 @@ class Account(dict):
             sorted(self.date_txs(date), key=lambda k: k["amount"], reverse=True)
         )
 
-    def get_similar_txs(self, tx):
+    def get_similar_txs(self, tx) -> List:
         """Return transactions similar to tx."""
 
         ret = []
@@ -75,7 +75,7 @@ class Account(dict):
                 continue
         return ret
 
-    def winnow_entries(self):
+    def winnow_entries(self) -> None:
         """Winnow entries that don't touch the checking account.  For ones
         that do, calculate and set amounts for each transaction.
 
@@ -100,12 +100,17 @@ class Account(dict):
 
 
 class Reconciler:
-    def __init__(self, ac1, ac2, templates):
+    def __init__(
+        self,
+        ac1: Dict[str, Union[str, List]],
+        ac2: Dict[str, Union[str, List]],
+        templates: Dict[str, str],
+    ) -> None:
         self.ac1 = Account(ac1)
         self.ac2 = Account(ac2)
         self.templates = templates
 
-    def get_latest_good_date(self):
+    def get_latest_good_date(self) -> Tuple[Optional[datetime.date], datetime.date]:
         """Returns two values: the latest date on which both ledgers match and
         the earliest day on which they don't match."""
         curr_day = datetime.datetime.today().date()
@@ -132,7 +137,7 @@ class Reconciler:
 
         return (None, earliest_bad_date)
 
-    def reconcile(self, date=""):
+    def reconcile(self, date: str = "") -> None:
         """Reconcile our two accounts and make a webpage with differences for
         first bad date"""
 
@@ -150,8 +155,8 @@ class Reconciler:
         print("Next transaction: %s" % earliest_bad)
         self.write_web_page("/tmp/reconcile.html", earliest_bad)
 
-    def web_page(self, date):
-        rows = []
+    def web_page(self, date: datetime.date) -> str:
+        rows = []  # type: List[Dict[str,str]]
         tx1 = self.ac1.indexable(date)
         tx2 = self.ac2.indexable(date)
 
@@ -210,8 +215,7 @@ class Reconciler:
         body = mustache.render(self.templates, "reconcile_body", body_dat)
         return mustache.render(self.templates, "master", {"body": body})
 
-    def write_web_page(self, fname, date):
-        account = ""
+    def write_web_page(self, fname: str, date: datetime.date) -> None:
         # Write web page
         with open(fname, "w") as fh:
             fh.write(self.web_page(date))
@@ -222,7 +226,9 @@ class Reconciler:
 @click.option("--date", help="Check a day's transactions against bank records")
 @click.option("--templates", help="Template directory")
 @click.argument("account", nargs=2)
-def cli(account, config=None, date="", templates=""):
+def cli(
+    account: List[str], config: str = "", date: str = "", templates: str = ""
+) -> None:
     """reconcile - display unreconciled statements between two accounts.
 
     ACCOUNT is a beancount file.  Please specify two."""
@@ -230,9 +236,9 @@ def cli(account, config=None, date="", templates=""):
     # Load templates
     if not templates:
         templates = os.path.join(os.path.split(__file__)[0], "templates")
-    templates = mustache.load_templates(templates)
+    template_dict = mustache.load_templates(templates)
 
-    beancount.settings = {"templates": templates}
+    beancount.settings = {"templates": template_dict}
 
     settings = u.get_config(config)
     accounts = {k["name"]: k for k in settings["accounts"]}
@@ -246,7 +252,7 @@ def cli(account, config=None, date="", templates=""):
             accounts[account[1]]["ledger_accounts"] = r[account[1]]
 
     reconciler = Reconciler(
-        accounts[account[0]], accounts[account[1]], templates=templates
+        accounts[account[0]], accounts[account[1]], templates=template_dict
     )
     if date:
         reconciler.reconcile(date)
