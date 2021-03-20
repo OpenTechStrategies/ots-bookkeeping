@@ -35,4 +35,4 @@ def load_templates(fname: str) -> Dict[str, str]:
 
 
 def render(templates: Dict[str, str], template: str, dic: Dict[str, Any]) -> str:
-    return cast(str, pystache.render(templates[template], dic))
+    return pystache.render(templates[template], dic)
