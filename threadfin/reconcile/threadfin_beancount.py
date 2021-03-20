@@ -244,8 +244,8 @@ class Register(List[Transaction]):
                 if isinstance(e, beancount.core.data.Transaction)
             ]
 
-        if isinstance(date, str):
-            date = dateparse.parse(date).date()
+        # if isinstance(date, str):
+        #     date = dateparse.parse(date).date()
 
         return [e for e in self.get_txs() if e.tx.date == date]
 
