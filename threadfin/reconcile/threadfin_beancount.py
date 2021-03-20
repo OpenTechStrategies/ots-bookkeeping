@@ -249,24 +249,10 @@ class Register(List[Transaction]):
 
         return [e for e in self.get_txs() if e.tx.date == date]
 
-    def load_reg_text(
-        self,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
-    ) -> str:
+    def load_reg_text(self) -> str:
         """Return a string with ledger register entries for the account in
         self.account.  Get the register from beancount and return it
-
-        START is an optional start date, it will include from that day forward.
-
-        END is an optional end date, it will exclude from that day forward.
-
-        START and END aren't implemented yet.
-
         """
-
-        if start or end:
-            raise UnimplementedError("Start and End not implemented yet")
 
         lines = []  # type: List[str]
         for account in self.accounts:
