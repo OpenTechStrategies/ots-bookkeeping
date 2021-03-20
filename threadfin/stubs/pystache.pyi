@@ -1,3 +1,0 @@
-from typing import Any, Optional
-
-def render(template: Any, context: Optional[Any] = ..., **kwargs: Any) -> int: ...
