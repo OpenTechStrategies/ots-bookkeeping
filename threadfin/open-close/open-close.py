@@ -15,10 +15,11 @@ import pprint
 import subprocess
 import sys
 from datetime import date, timedelta
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
-import beancount  # type: ignore
-from beancount import loader
+import click
+from beancount import loader  # type: ignore
 
 import util as u
 
@@ -51,40 +52,52 @@ class Accounts(Dict[str, Any]):
                 self[account] = {"open": datum, "close": datum}
 
 
-accounts = Accounts()
-
-
-def walk_for_beancount(dirspec: str) -> List[str]:
+def walk_for_beancount(dirspec: Path) -> List[Path]:
     """Return all beancount files in dir tree DIRSPEC"""
     beancounts = subprocess.check_output(
         f"find {dirspec} -name '*.beancount'", shell=True
     ).decode("UTF-8")
-    ret = [e for e in beancounts.split("\n") if e]
+    ret = [Path(e) for e in beancounts.split("\n") if e]
     return ret
 
 
-if os.path.isdir(sys.argv[1]):
-    fspecs = walk_for_beancount(sys.argv[1])
-else:
-    fspecs = [sys.argv[1]]
+def get_beancount_files(beancounts: Tuple[str]) -> List[Path]:
+    """Return beancount Path objects and walk dirs for beancount files"""
+    ret = []
+    for path in [Path(f) for f in beancounts]:
+        if os.path.isdir(path):
+            ret.extend(walk_for_beancount(path))
+        else:
+            ret.append(path)
+    return ret
 
-for fspec in fspecs:
-    entries, errors, optiions = loader.load_file(fspec)
-    for entry in entries:
-        if not hasattr(entry, "postings"):
-            continue
-        for posting in entry.postings:
-            accounts.add(posting.account, entry.date)
 
-lines = []
-for name, account in accounts.items():
-    lines.append(f"{account['open']} open {name}   USD")
-    if account["close"].year != date.today().year:
-        closing = account["close"] + timedelta(days=1)
-        lines.append(f"{closing} close {name}")
+@click.command()
+@click.argument("beancount", nargs=-1, required=True)
+def cli(beancount: Tuple[str]) -> None:
+    accounts = Accounts()
 
-print("2009-01-01 commodity USD")
+    for fspec in get_beancount_files(beancount):
+        entries, errors, optiions = loader.load_file(fspec)
+        for entry in entries:
+            if not hasattr(entry, "postings"):
+                continue
+            for posting in entry.postings:
+                accounts.add(posting.account, entry.date)
 
-lines = sorted(lines)
-for line in lines:
-    print(line)
+    lines = []
+    for name, account in accounts.items():
+        lines.append(f"{account['open']} open {name}   USD")
+        if account["close"].year != date.today().year:
+            closing = account["close"] + timedelta(days=1)
+            lines.append(f"{closing} close {name}")
+
+    print("2009-01-01 commodity USD")
+
+    lines = sorted(lines)
+    for line in lines:
+        print(line)
+
+
+if __name__ == "__main__":
+    cli()
