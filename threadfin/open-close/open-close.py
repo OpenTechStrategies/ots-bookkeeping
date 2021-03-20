@@ -10,64 +10,68 @@ It won't generate close statements for anything in the current year.
 
 """
 
-from datetime import date, timedelta
-import util as u
 import os
+import pprint
 import subprocess
 import sys
-import beancount
+from datetime import date, timedelta
+from typing import Dict, List
+
+import beancount  # type: ignore
 from beancount import loader
-import pprint
+
+import util as u
+
 pp = pprint.PrettyPrinter(indent=4).pprint
 
 if len(sys.argv) < 2:
     u.err("Must specify a beancount file or a dir tree containing beancount files.")
 
 
-class Accounts(dict):
-    def __init__(self):
+class Accounts(Dict):
+    def __init__(self) -> None:
         dict.__init__(self)
 
-    def add(self, account, datum):
-        if 'James:Karl' in account:
+    def add(self, account: str, datum) -> None:
+        if "James:Karl" in account:
             parts = account.split("James:Karl")
             self.add(f"{parts[0]}James{parts[1]}", datum)
             self.add(f"{parts[0]}Karl{parts[1]}", datum)
-        elif 'Karl:James' in account:
+        elif "Karl:James" in account:
             parts = account.split("Karl:James")
             self.add(f"{parts[0]}James{parts[1]}", datum)
             self.add(f"{parts[0]}Karl{parts[1]}", datum)
         else:
             if account in self:
-                if datum < self[account]['open']:
-                    self[account]['open'] = datum
-                if datum > self[account]['close']:
-                    self[account]['close'] = datum
+                if datum < self[account]["open"]:
+                    self[account]["open"] = datum
+                if datum > self[account]["close"]:
+                    self[account]["close"] = datum
             else:
-                self[account] = {'open': datum, 'close': datum}
+                self[account] = {"open": datum, "close": datum}
 
 
 accounts = Accounts()
 
 
-def walk_for_beancount(dirspec):
+def walk_for_beancount(dirspec: str) -> List:
     """Return all beancount files in dir tree DIRSPEC"""
     beancounts = subprocess.check_output(
-        f"find {dirspec} -name '*.beancount'", shell=True).decode("UTF-8")
-    beancounts = [e for e in beancounts.split("\n") if e]
-    return beancounts
+        f"find {dirspec} -name '*.beancount'", shell=True
+    ).decode("UTF-8")
+    ret = [e for e in beancounts.split("\n") if e]
+    return ret
 
 
-fspecs = sys.argv[1]
-if os.path.isdir(fspecs):
-    fspecs = walk_for_beancount(fspecs)
+if os.path.isdir(sys.argv[1]):
+    fspecs = walk_for_beancount(sys.argv[1])
 else:
-    fspecs = [fspecs]
+    fspecs = [sys.argv[1]]
 
 for fspec in fspecs:
     entries, errors, optiions = loader.load_file(fspec)
     for entry in entries:
-        if not hasattr(entry, 'postings'):
+        if not hasattr(entry, "postings"):
             continue
         for posting in entry.postings:
             accounts.add(posting.account, entry.date)
@@ -75,8 +79,8 @@ for fspec in fspecs:
 lines = []
 for name, account in accounts.items():
     lines.append(f"{account['open']} open {name}   USD")
-    if account['close'].year != date.today().year:
-        closing = account['close'] + timedelta(days=1)
+    if account["close"].year != date.today().year:
+        closing = account["close"] + timedelta(days=1)
         lines.append(f"{closing} close {name}")
 
 print("2009-01-01 commodity USD")
