@@ -9,7 +9,6 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import beancount  # type: ignore
-import petl as etl  # type: ignore
 from beancount import loader
 from dateutil import parser as dateparse
 from moneyed import Money  # type: ignore
@@ -221,7 +220,7 @@ class Register(List[Transaction]):
 
         self.fname = account.get("ledger_file", "")
         self.accounts = account.get("ledger_accounts", "")
-        self.register_text = self.load_reg_text()
+        self.register_text: str = self.load_reg_text()
         self.register_lines = [l for l in self.register_text.split("\n") if l]
 
         # Use beancount's loader to load our entries
