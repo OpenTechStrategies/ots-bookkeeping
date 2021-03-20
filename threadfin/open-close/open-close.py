@@ -15,7 +15,7 @@ import pprint
 import subprocess
 import sys
 from datetime import date, timedelta
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import beancount  # type: ignore
 from beancount import loader
@@ -28,11 +28,11 @@ if len(sys.argv) < 2:
     u.err("Must specify a beancount file or a dir tree containing beancount files.")
 
 
-class Accounts(Dict):
+class Accounts(Dict[str, Any]):
     def __init__(self) -> None:
         dict.__init__(self)
 
-    def add(self, account: str, datum) -> None:
+    def add(self, account: str, datum: Any) -> None:
         if "James:Karl" in account:
             parts = account.split("James:Karl")
             self.add(f"{parts[0]}James{parts[1]}", datum)
@@ -54,7 +54,7 @@ class Accounts(Dict):
 accounts = Accounts()
 
 
-def walk_for_beancount(dirspec: str) -> List:
+def walk_for_beancount(dirspec: str) -> List[str]:
     """Return all beancount files in dir tree DIRSPEC"""
     beancounts = subprocess.check_output(
         f"find {dirspec} -name '*.beancount'", shell=True
