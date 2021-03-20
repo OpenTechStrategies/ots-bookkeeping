@@ -4,12 +4,11 @@ import datetime
 import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Dict, List
 
 import click
 from dateutil import parser as dateparse
-
-import util as u
 
 
 def sorted_txs(transactions: str) -> str:
@@ -145,7 +144,7 @@ def cli(infile: str, write: bool = False) -> None:
     might sneak into a "parse and reproduce" cycle.
 
     """
-    ret = sort_beancount_text(u.slurp(infile))
+    ret = sort_beancount_text(Path(infile).read_text())
     if write:
         bak_count = 0
         while os.path.exists(f"{infile}.bak{bak_count}"):
