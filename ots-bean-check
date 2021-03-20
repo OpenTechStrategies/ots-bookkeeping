@@ -44,10 +44,11 @@ for more information.  You can set it up in your .emacs something like this:
   (add-to-list 'auto-mode-alist '(".*\\.beancount" . beancount-mode))
 """
 
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from typing import List, Tuple
+
 import click
 
 VERBOSE = False
@@ -56,18 +57,6 @@ VERBOSE = False
 # stop printing errors to stderr, and raise exceptions or return lists
 # of error points.  Furthermore, they'll take some kind of Beancount
 # object as input.  But all that is in the future.
-
-
-def check_beancount_cli(beancount: Tuple[str]) -> List[Path]:
-    """Make sure we have params and turn them into paths"""
-    ret = []
-
-    if len(beancount) == 0:
-        sys.exit("ERROR: one or more arguments (beancount files) are required")
-
-    for fname in beancount:
-        ret.append(Path(fname))
-    return ret
 
 
 def check_date_order(fname: Path) -> int:
@@ -132,13 +121,13 @@ def check_quotes(fname: Path) -> int:
 @click.option("--date", is_flag=True, help="check date order")
 @click.option("--quote", is_flag=True, help="check quote formatting")
 @click.option("--verbose", "-v", is_flag=True)
-@click.argument("beancount", nargs=-1)
+@click.argument("beancount", nargs=-1, required=True)
 def cli(beancount: Tuple[str], date: bool, quote: bool, verbose: bool) -> None:
     global VERBOSE
     if verbose:
         VERBOSE = True
 
-    beanpaths = check_beancount_cli(beancount)
+    beanpaths = [Path(f) for f in beancount]
     num_probs = 0
 
     # If user specifies no tests, run them all, otherwise only do the ones the
