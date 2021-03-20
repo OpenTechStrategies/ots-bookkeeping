@@ -47,7 +47,7 @@ for more information.  You can set it up in your .emacs something like this:
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
 import click
 
