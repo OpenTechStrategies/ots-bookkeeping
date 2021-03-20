@@ -50,14 +50,14 @@ import getopt
 import io
 import sys
 
-import pdfrw  # 'pip3 install pdfrw' if needed
-import reportlab.pdfgen.canvas
+import pdfrw  # type: ignore # 'pip3 install pdfrw' if needed
+import reportlab.pdfgen.canvas  # type: ignore
 
 
 class TextLine:
     """One line of text, to be placed at a particular X+Y position."""
 
-    def __init__(self, text, x, y):
+    def __init__(self, text: str, x: int, y: int) -> None:
         self.text = text
         self.x = x
         self.y = y
@@ -66,17 +66,17 @@ class TextLine:
 class TextBlock:
     """A set of TextLines, to be treated as a block."""
 
-    def __init__(self, *text_lines):
+    def __init__(self, *text_lines: TextLine) -> None:
         """TEXT_LINES are TextLine objects."""
         self.text_lines = text_lines
 
-    def write(self, canvas):
+    def write(self, canvas: reportlab.pdfgen.canvas.Canvas) -> None:
         """Write all the text lines in this block to CANVAS."""
         for t_line in self.text_lines:
             canvas.drawString(x=t_line.x, y=t_line.y, text=t_line.text)
 
 
-def make_overlay(*text_blocks):
+def make_overlay(*text_blocks: TextBlock) -> io.BytesIO:
     """Make the overlay PDF that we \"draw onto\" the underlying 1099 PDF.
     Returns io.BytesIO."""
     buf = io.BytesIO()
@@ -96,7 +96,7 @@ def make_overlay(*text_blocks):
     return buf
 
 
-def place_overlay(blank_form_path, overlay):
+def place_overlay(blank_form_path: str, overlay: io.BytesIO) -> io.BytesIO:
     """Fill out a blank 1099 form with an overlay.  Return io.BytesIO."""
     blank_form_pdf = pdfrw.PdfReader(blank_form_path)
     overlay_pdf = pdfrw.PdfReader(overlay)
@@ -109,16 +109,17 @@ def place_overlay(blank_form_path, overlay):
     return filled_out_form
 
 
-def main():
-    payee_name = None
-    payee_street_address = None
-    payee_location = None
-    payee_tid = None
-    amount = None
-    payer_ein = None
-    payer_address = None
-    output_file = None
-    blank_form = None
+def main() -> None:
+    blank_block = TextBlock(TextLine("", 0, 0))
+    payee_name = blank_block
+    payee_street_address = blank_block
+    payee_location = blank_block
+    payee_tid = blank_block
+    amount = blank_block
+    payer_ein = blank_block
+    payer_address = blank_block
+    output_file = ""
+    blank_form = ""
 
     try:
         (opts, args) = getopt.getopt(
@@ -193,8 +194,8 @@ def main():
         payer_address,
     )
     filled_out_form = place_overlay(blank_form, overlay)
-    with open(output_file, "wb") as f:
-        f.write(filled_out_form.read())
+    with open(output_file, "wb") as fh:
+        fh.write(filled_out_form.read())
 
 
 if __name__ == "__main__":
