@@ -222,7 +222,7 @@ class Reconciler:
 
 
 @click.command()
-@click.option("--config", default="config.yaml", help="config file")
+@click.option("--config", help="config file")
 @click.option("--date", help="Check a day's transactions against bank records")
 @click.option("--templates", help="Template directory")
 @click.argument("account", nargs=2)
