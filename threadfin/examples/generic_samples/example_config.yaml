@@ -1,0 +1,45 @@
+### A config file requires the following:
+### * template_dir: 'path to template directory'
+### *     accounts: a list of dictionaries 
+### *    reconcile: a list containing one dictionary
+
+### template_dir is a directory of templates.
+### I don't know how to explain what a template directory requires.
+### If you are using sample data, or want to use the built-in templates, uncomment the following line and replace 'XX_OTS_BOOKKEEPING_DIR_XX' with your path to ots-bookkeeping
+
+# template_dir: 'XX_OTS_BOOKKEEPING_DIR_XX/threadfin/reconcile/templates'
+
+### Make a dictionary for each beancount file you will use to reconcile. Each dictionary requires:
+###   |         keys    |   values      	       |
+### * | --------------- |:----------------------------:|
+### * |       'name'    |   a string     	       |
+### * |'ledger_file'    |   a path to a beancount file |
+### 'name' identifies the beancount file. When using ots-bookkeeping commands, you will call a particular beancount file with the 'name' key you defined here, not with its path
+### 'ledger_file' is the path to the beancount file you want to match to the name you gave it 
+### If you're using sample data, uncomment the two dictionaries below and replace 'XX_OTS_BOOKKEEPING_DIR_XX' with your path to ots-bookkeeping
+
+accounts: [
+# {	 'name': 'main',
+# 'ledger_file': 'XX_OTS_BOOKKEEPING_DIR_XX/threadfin/examples/generic_samples/main.beancount',
+# },
+
+# {	 'name': 'chase',
+# 'ledger_file': 'XX_OTS_BOOKKEEPING_DIR_XX/threadfin/examples/generic_samples/chase.beancount',
+# },
+
+]
+
+### Make a key/value pair for each account of each beancount file you will want to reconcile.
+### Use the following format
+### * 'XX_ACCOUNT_NAME_XX':['ACCT:TREE:PATH'],
+### The account key must match the 'name' value of a dictionary in accounts
+### The value defines which account within that file you specifically want to reconcile. Most likely, all values in reconcile will be the same, or at least similar
+### If you are using sample data, uncomment the two entries for 'chase' and 'main' below
+
+reconcile: [
+{
+#	 'chase':	['Liabilities:US:Chase:Slate'],
+#	  'main':	['Liabilities:US:Chase:Slate']
+}
+]
+
