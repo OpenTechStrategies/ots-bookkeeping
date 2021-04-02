@@ -1,18 +1,20 @@
 # Threadfin
 
 Threadfin is a set of utilities for working with ledger files.  Look
-at <utility-name>.mdwn for documentation about each utility.  Run the
+at the appropriate README.md for each utility.  Run the
 utility with `threadfin foo bar baz` where "foo" is the name of the
 utility and "bar" and "baz" are options to that utility.  You'll
 probably want to place `bin/threadfin` somewhere on your path.
 
 For example: `threadfin sort /path/to/ledger/file`.
 
-# threadfin.yaml
-Each statement dir can have a threadfin.yaml in which config can live.
+# threadfin.yaml / config.yaml
 
-The format and use of `threadfin.yaml` files isn't fully baked, so I
-haven't documented it yet.
+Each statement dir can have a `threadfin.yaml` in which config can
+live.  The format and use of `threadfin.yaml` files isn't fully baked,
+so we haven't documented it yet.  Indeed, even the name isn't fully
+baked: some parts of this code base call it `config.yaml` or something
+similar.  This should all be made consistent eventually.
 
 # Convert
 Converts statements to beancount files.  Point it at a directory of

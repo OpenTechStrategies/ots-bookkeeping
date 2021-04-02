@@ -26,7 +26,7 @@ automatically split a posting among multiple parties.
 
 threadfin is a set of tools that make beancount easier.  It consists
 of several subtools, all of which can be accessed via `threadfin
-TOOLNAME`.  See `threadfin/README.mdwn` for more information.
+TOOLNAME`.  See `threadfin/README.md` for more information.
 
 ## ots-generate-1099, fill-1099
 
