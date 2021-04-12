@@ -165,7 +165,11 @@ class Statement(Transactions):
         ret = ""
         txn = self if self else self.transactions
         for tx in sorted(txn, key=lambda tx: tx["date"]):
-            ret += tx.as_beancount()
+            try:
+                ret += tx.as_beancount()
+            except:
+                sys.stderr.write(f"Error converting {self.pdfname_full} to beancount")
+                raise
         return ret
 
     def balance_assertions(self, account=None):

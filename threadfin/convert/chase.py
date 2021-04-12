@@ -4,18 +4,19 @@ import datetime
 import re
 import sys
 
-from dateutil import parser as dateparse
-
 # Our code
 import statement
 import transaction
 import util as u
+from dateutil import parser as dateparse
 from util import parse_money
 
 rx = {}
 rx["date"] = re.compile("[0-9][0-9]/[0-9][0-9]")
 rx["checknum"] = re.compile(r"(\d\d*)\s+([* ^]*) *(\S*) *(\d\d/\d\d) *(\S*)")
 
+class UnknownCardHolderError(Exception):
+    pass
 
 class Transaction(transaction.Transaction):
     def as_beancount(self):
@@ -49,7 +50,7 @@ class Transaction(transaction.Transaction):
                     split = holder
                     h["cardholder"] = holder
             if not h["cardholder"] or not split:
-                u.err("Unknown cardholder: %s" % tx)
+                raise UnknownCardHolderError("Unknown cardholder: %s" % tx)
 
             h = self.custom_match_comment(CUSTOM["comment"], h)
             if "split" in h:
