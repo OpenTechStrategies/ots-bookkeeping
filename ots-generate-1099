@@ -26,33 +26,34 @@
 
 set -e
 
+######################### Arguments #######################
+
+# YYYY format, obviously.
 TAX_YEAR="${1}"
+
+# What we call them -- their entry name in opass, but without
+# underscores.  E.g., "Kim Random", or "You Wouldnt Download an LLC".
+# (If they use some different name for their tax forms, we'll get
+# that from the "taxpayer_name" field in their opass file later.)
 PAYEE="${2}"
+
 # Ideally we would parse address information from some fixed-format
 # file in personnel/FIRST_LAST, and just pass FIRST_LAST instead of
-# all these separate PAYEE* arguments.  But one thing at a time.
-PAYEE_ADDR_STREET="${3}"
-PAYEE_ADDR_LOCATION="${4}"
+# all these separate PAYEE* arguments.  But this works well enough.
+ADDR_STREET="${3}"
+ADDR_LOCATION="${4}"
+
+# Just a number with two places after the decimal point.  No dollar sign.
 AMOUNT="${5}"
 
-# Strip any ", LLC" off of the payee, because when we look things
-# up internally that wouldn't be included on the key.
-#
-# Note that we only strip ", LLC", not " LLC".  Dan Schultz named his
-# entity "You Wouldn't Download an LLC", which is hilarious and also
-# exposed every quoting vulnerability in this pipeline (his LLC should
-# hire Bobby Tables as an intern -- https://xkcd.com/327/).  Its opass
-# entry is "personnel/You_Wouldn't_Download_an_LLC/secrets", yes,
-# single-quote and all.  Some day we'll have a consultant named O'Hara
-# or something and it'll be nice that everything already Just Works.
-PAYEE_PLAIN=`echo -n "${PAYEE}" | sed -e 's/, LLC$//'`
+######################### End Arguments #######################
 
 # Transform "Jane Random" into "Jane_Random".
 # This should usually work.  If it ever doesn't, we'll fix it.
-PERSONNEL_NAME=`echo "${PAYEE_PLAIN}" | sed -e "s/ /_/g"`
+PERSONNEL_NAME=`echo "${PAYEE}" | sed -e "s/ /_/g"`
 
 # Transform "Jane Random" into "jane-random".
-OUTPUT_NAME=`echo "${PAYEE_PLAIN}" | sed -e "s/ /-/g" | awk '{print tolower($0)}'`
+OUTPUT_NAME=`echo "${PAYEE}" | sed -e "s/ /-/g" | awk '{print tolower($0)}'`
 
 FILL_1099=${OTS_BOOKKEEPING_DIR}/fill-1099
 
@@ -71,23 +72,25 @@ OUTPUT_FILE="${OUTPUT_NAME}-${TAX_YEAR}-form-1099.pdf"
 # There's surely some better way to do this.
 TID=`opass show personnel/"${PERSONNEL_NAME}"/secrets | grep "taxpayer_id: " | cut -d ":" -f 2 | awk '{$1=$1};1'`
 
-# Some people do business under an entity name.  As long as we store
-# their information under their personal name in opass, with an
-# "entity:" subentry under "w9", then this kluge will usually work.
-# And is that requirement, to store this information under the
-# person's overall opass entry rather than under an opass entry for
-# the entity, documented anywhere?  Why, no, of course not.  Except here.
-ENTITY_NAME=`opass show personnel/"${PERSONNEL_NAME}"/secrets | grep "entity: " | cut -d ":" -f 2 | awk '{$1=$1};1'`
-if [ "${ENTITY_NAME}" ]; then
-  PAYEE="${ENTITY_NAME}"
+# Some people use a different name for tax purposes -- either a more
+# formal/bureaucratic version of their own name (e.g., "EMi Spicer"
+# becomes "Emily Spicer", or "Greg Back" becomes "Gregory T Back"), or
+# sometimes a business entity name.  So if ${PAYEE} isn't what we
+# should use for that, then whatever we *should* use will be in the 
+# "taxpayer_name:" subentry under "w9" in personnel/${PAYEE}/secrets
+# (replace spaces with underscores in ${PAYEE} when calculating the
+# opass path, of course).
+TAXPAYER_NAME=`opass show personnel/"${PERSONNEL_NAME}"/secrets | grep "taxpayer_name: " | cut -d ":" -f 2 | awk '{$1=$1};1'`
+if [ "${TAXPAYER_NAME}" = "" ]; then
+  TAXPAYER_NAME="${PAYEE}"
 fi
 
 rm -f "${OUTPUT_FILE}"
 
 ${FILL_1099}                                             \
-    --payee-name="${PAYEE}"                              \
-    --payee-street-address="${PAYEE_ADDR_STREET}"        \
-    --payee-location="${PAYEE_ADDR_LOCATION}"            \
+    --payee-name="${TAXPAYER_NAME}"                      \
+    --payee-street-address="${ADDR_STREET}"              \
+    --payee-location="${ADDR_LOCATION}"                  \
     --payee-tid="${TID}"                                 \
     --amount="${AMOUNT}"                                 \
     --payer-ein="27-3485318"                             \
