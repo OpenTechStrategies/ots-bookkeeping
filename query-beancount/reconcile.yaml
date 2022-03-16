@@ -1,0 +1,31 @@
+---
+template_dir: "/usr/local/src/ots-bookkeeping/threadfin/reconcile/templates"
+
+accounts: [
+    {'name': 'main',
+     'ledger_file': "/home/james/OTS/finances/main.beancount",
+     },
+
+    {'name': 'chase',
+     'ledger_file': "/home/james/OTS/finances/statements/all.beancount",
+     },
+
+    {'name': 'james_chase',
+     'ledger_file': "/home/james/Documents/Finances/statements/all.beancount",
+     },
+
+    {'name': 'aadvantage',
+     'ledger_file': "/home/james/Sync/family/documents/finance/aadvantage/statements/all.beancount"
+     },
+
+    {'name': 'capitalone',
+     'ledger_file': "/home/james/Sync/family/documents/finance/capitalone/statements/all.beancount"
+     }
+]
+
+
+reconcile: [
+    { 'chase':['Assets:Checking'],
+      'main': ['Assets:Checking', 'Assets:Guaranteed-Payments']
+    },
+]

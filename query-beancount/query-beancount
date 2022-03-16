@@ -1,0 +1,469 @@
+#!/usr/bin/env python3
+
+"""
+# Dependencies
+    pip install -r requirements
+
+Or get them from debian:
+
+   apt-get install faketime python3-click python3-fuzzywuzzy
+   python3-levenshtein python3-moneyed python3-yaml python3-svgwrite
+
+# Use
+
+example: To generate 1099 for Frank Duncan:
+
+    qb f1099 --year 2018 --payee "Frank Duncan"
+
+example: To generate 1099 for people listed in in contractors.contractors in contractors.yml:
+
+    qb f1099 --year=2018
+
+# Features Wanted
+
+Here's a list of things we wish this script did:
+
+if [ -z ${QUERY_CMD} ]; then
+	echo "Usage: query-ledger SUBCOMMAND [PERIOD]"
+	echo ""
+	echo "  Available subcommands:"
+	echo "  ======================"
+	echo ""
+	#  echo '    (Note: PERIOD is usually a year in YYYY format,'
+	#  echo '     but can be an interval like "last 24 months")'
+	echo ""
+	echo "  'all':             show balances for all accounts"
+	echo "  'top':             show balances for just top-level accounts"
+	echo "  'xml':             express ledger file in GnuCash-readable XML"
+	echo "  'draw PERIOD':     show how much each partner has drawn in PERIOD"
+	#  echo "  'equity':         show how much each partner has in current equity"
+	echo "  'receipts PERIOD': show gross receipts for PERIOD."
+	echo "  'expenses PERIOD': show expenses for PERIOD"
+	echo "  'profit YYYY':     show profit-&-loss statement for year YYYY."
+	echo "  'receivable':      show outstanding receivables"
+	echo "  'payable':         show outstanding payables"
+	echo "  'unbilled':        show unbilled work"
+	echo "  'activity PERIOD': print entries+balances for PERIOD, sorted by date"
+	echo "  'validate':        say whether or not the ledger is currently valid"
+	echo "                     (if invalid, show details and exit with error)"
+	exit 0
+fi
+"""
+
+
+import decimal
+import os
+import subprocess
+import sys
+import re
+from typing import Any, Dict, Tuple
+
+import click
+import fuzzywuzzy  # type: ignore
+import fuzzywuzzy.fuzz  # type: ignore
+from moneyed import Money  # type: ignore
+
+import balance_sheet
+import income_statement
+import Orgnode as org
+import util as u
+from envelope import Envelope
+from irs import F1099, W9
+from util import parse_positions, date_to_sql_cond, bean_query, err, run_command
+
+# Globals that get set later
+OTS_DIR = ""
+BEAN_DIR = ""
+BEAN_FILE = ""
+THREADFIN_PGM = ""
+VERBOSE = False
+
+
+def check_beancount() -> None:
+    "Check that beancount is installed"
+    try:
+        subprocess.check_output("which bean-report", shell=True)
+        from beancount import loader  # type: ignore
+    except (subprocess.CalledProcessError, ModuleNotFoundError):
+        err(
+            """\nYou appear not to have Beancount installed.
+Do something like this:
+
+   $ pip3 install beancount
+
+Or maybe this (on Debian):
+
+   $ sudo apt-get update && sudo apt-get install python3-beancount
+
+Or you could go straight to source:
+
+   $ hg clone https://bitbucket.org/blais/beancount/
+   $ cd beancount
+   $ sudo pip3 install .
+
+See http://furius.ca/beancount/ for more about Beancount,
+and see https://www.mercurial-scm.org/wiki/GitConcepts
+(the section "4. Command equivalence table") for basic
+Mercurial help.\n"""
+        )
+
+
+@click.group()
+def cli() -> None:
+    pass
+
+
+@cli.command()
+def all() -> None:
+    """Show all balances"""
+    balances = subprocess.check_output(
+        f"bean-report {BEAN_DIR}/main.beancount balances", shell=True
+    ).decode("utf-8")
+    print(balances)
+
+
+@cli.command()
+@click.argument("payee")
+@click.argument("date")
+@click.option("--verbose/--no-verbose", default=False)
+def expenses(payee: str, date: str, verbose: bool) -> None:
+    """Show transactions matching PAYEE within DATE.
+    PAYEE is a substring matching some (hopefully just one) payee.
+    DATE can be YYYY, YYYY/MM, or YYYY/MM/DD.
+    Dates of the first and second forms indicate ranges."""
+    global VERBOSE
+    VERBOSE = verbose
+
+    # A list of individual conditions (strings) to be joined using "and" to
+    # form a composite 'WHERE' condition in SQL.
+    where_clause_ands = []
+
+    where_clause_ands.append(f"(payee~'{payee}')")
+    where_clause_ands.append(date_to_sql_cond(date))
+
+    query = "SELECT date, account, position, payee WHERE %s" \
+        % " and ".join(where_clause_ands)
+
+    if VERBOSE:
+        print(query)
+
+    lines = bean_query(BEAN_FILE, query).strip().split("\n")
+    lines = [line.strip() for line in lines if "Expenses" in line]
+    total_amt = 0
+    longest_len = 0
+    for item in parse_positions(lines):
+        date     = item[0]
+        acct     = item[1]
+        amt      = item[2]
+        amt_str  = f"{amt:-14.2f}"
+        payee    = item[3]
+        # We could precalculate the account width and use that to always get
+        # it exactly right.  Not sure it matters for our purposes, though.
+        line = f"{date} {amt_str}  {acct:32}  {payee}"
+        print(line)
+        longest_len = max(len(line), longest_len)
+        total_amt += amt
+    print("-" * longest_len)
+    print(f"Total amount: {total_amt:-11.2f}")
+
+
+@cli.command()
+@click.argument("date")
+@click.option("--account", default="", help="only show lines from this account")
+@click.option("--verbose/--no-verbose", default=False)
+def date(date: str, account: str, verbose: bool) -> None:
+    """Show transactions from a specific date"""
+    global VERBOSE
+    VERBOSE = verbose
+
+    # A list of individual conditions (strings) to be joined using "and" to
+    # form a composite 'WHERE' condition in SQL.
+    where_clause_ands = []
+
+    where_clause_ands.append(date_to_sql_cond(date))
+
+    if account:
+        where_clause_ands.append(f"(account~'{account}')")
+
+    query = "SELECT date, account, payee, position, balance WHERE %s" \
+        % " and ".join(where_clause_ands)
+
+    if VERBOSE:
+        print(query)
+
+    lines = bean_query(BEAN_FILE, query).strip().split("\n")
+    out = [
+        "Date       A Payee                                 Position    Total",
+        "---------- - ------------------------------------- ----------- ------------",
+    ]
+    # out = lines[:2]
+    last_d = last_a = last_amount = None
+    last_amount = decimal.Decimal(0)
+    last_payee = ""
+    total = 0
+    for line in lines[2:]:
+        if "Expenses:" in line:
+            continue
+
+        line = line.replace("Assets:Checking:James", "J")
+        line = line.replace("Assets:Checking:Karl ", "K")
+        d, a, rest = line.split(" ", 2)
+        payee = " ".join(rest.split("USD")[0].strip().split(" ")[:-1]).strip()
+        # float(rest.split("USD")[0].strip().split(' ')[-1])
+        amount = Money(rest.replace(payee, "").split("USD")[0]).amount
+
+        if (
+            "karl" in payee
+            and "karl" in last_payee
+            or "james" in payee
+            and "james" in last_payee
+        ):
+            out.append(line)
+        elif d == last_d and payee == last_payee and amount - last_amount <= 0.1:
+            a = ""
+            amount = amount + last_amount
+            total += amount
+            out[-1] = "{0} {1:1} {2:<34} {3:>10.2f} USD {4:>8.2f} USD".format(
+                d, a, payee, amount, total
+            )
+        else:
+            total += amount
+            out.append(
+                "{0} {1:1} {2:<34} {3:>10.2f} USD {4:>8.2f} USD".format(
+                    d, a, payee, amount, total
+                )
+            )
+        last_d = d
+        last_a = a
+        last_payee = payee
+        last_amount = amount
+
+    print("\n".join(out))
+
+
+@cli.command()
+def inbox() -> None:
+    """Turn invoices into beancount entries
+
+    Right now we only support one service, digital ocean, but future
+    invocations might run this multiple times.  Note that we're passing
+    flags that have these scripts just edit the appropriate beancount file.
+    There will be little or no on-screen feedback unless an error occurs.
+
+    """
+    run_command(
+        "%s inbox digital-ocean -w %s %s"
+        % (
+            THREADFIN_PGM,
+            os.path.join(BEAN_DIR, "receipts/services/digitalocean"),
+            os.path.join(BEAN_DIR, "services/digital_ocean.beancount"),
+        )
+    )
+
+
+@cli.command()
+def convert() -> None:
+    """Convert the bank statements to beancount files"""
+    run_command(f"{THREADFIN_PGM} convert {BEAN_DIR}/statements")
+
+
+@cli.command()
+@click.option(
+    "--date", default="", help="Reconcile one day's transactions against bank records"
+)
+def reconcile(date: str = "") -> None:
+    """Reconcile main.beancount with our bank statement
+
+    Output the latest date on which the accounts align.  Also, write
+    `/tmp/reconcile.html` which presents more detail.
+
+    """
+    config = os.path.join(OTS_DIR, "finances", "query-beancount", "reconcile.yaml")
+    if date:
+        date = "--date %s" % date
+    print(run_command(f"threadfin reconcile --config {config} {date} main chase"))
+
+
+@cli.command()
+def sort() -> None:
+    """Sort all the beancount files in date order"""
+    os.chdir(BEAN_DIR)
+    find_cmd = "find -maxdepth 1 -name '*.beancount'"
+    sort_cmd = "-exec %s sort -w {} \\;" % THREADFIN_PGM
+    subprocess.run(f"{find_cmd} {sort_cmd}", shell=True)
+    # subprocess.run(f"{find_cmd}", shell=True)
+
+
+@cli.command()
+def beancheck() -> bool:
+    return do_beancheck()
+
+
+def do_beancheck() -> bool:
+    """Run bean check on all ledger, return True if errors found"""
+    from beancount import loader
+
+    entries, errors, options = loader.load_file(BEAN_FILE)
+
+    if not errors:
+        return False
+
+    err_d: Dict[str, Any] = {}
+
+    print("bean-check shows errors!")
+    for error in errors:
+        print(type(error))
+        if error.message not in err_d:
+            err_d[error.message] = []
+        err_d[error.message].append(error)
+
+    for msg, errs in err_d.items():
+        error = errs[0]
+        location = f"{error.source['filename']}:{error.source['lineno']}"
+        print(f"{location}|{msg}|")
+
+    return True
+
+
+@cli.command()
+def validate() -> None:
+    """Validate various things about our beancount system.
+
+    If we find any issues, we exit with return code 2"""
+
+    found = do_beancheck()
+
+    result = bean_query(BEAN_FILE, "SELECT * WHERE year>=2018 and payee=''").strip()
+    if result != "(empty)":
+        print(
+            "Some beancount entries don't have a payee.  They should have a payee\nand a narration, even if the narration is an empty string.\n"
+            + result
+        )
+        found = True
+
+    # Look for payee names that are suspiciously similar
+    ok = [
+        ("USPS", "UPS"),
+        ("Chicago Taxi", "Taxi Svc Chicago"),
+    ]
+    payees = set(
+        [
+            p.strip()
+            for p in bean_query(BEAN_FILE, "SELECT payee WHERE year>=2018")
+            .strip()
+            .split("\n")[2:]
+        ]
+    )
+    matches: Dict[str, Tuple[str, float]] = {}
+    out = ""
+    for p1 in payees:
+        for p2 in payees:
+            if p1 == p2 or (p1, p2) in ok or (p2, p1) in ok:
+                continue
+            similarity = max(
+                fuzzywuzzy.fuzz.ratio(p1, p2), fuzzywuzzy.fuzz.token_sort_ratio(p1, p2)
+            )
+            if similarity > 80:
+                if p2 in matches and matches[p2] == (p1, similarity):
+                    continue
+                matches[p1] = (p2, similarity)
+                out += "%d: '%s' ~ '%s'\n" % (similarity, p1, p2)
+    if out:
+        print("Some entries have similar payees to each other:\n%s" % out)
+        found = True
+
+    if found:
+        sys.exit(2)
+
+
+def add_share_postings_to_pythonpath(ots_bookkeeping_dir: str) -> None:
+    """Add share_postings.py dir to pythonpath
+
+    You might be thinking: "Hey, the Pythonic way to do this would be
+    'sys.path.insert(1, os.path.join(...etc...))'!"  But here we're enabling the
+    various bean-* programs -- which we'll invoke via subprocess calls -- to be
+    able to load the plugins specified by a "plugins" option line in, e.g.,
+    main.beancount.  The bean-* programs will not inherit our sys.path, so
+    instead we have to do this in the environment.  Interestingly, that means
+    that this script itself will not have the modified PYTHONPATH (it would have
+    needed to be in to in the environment already when this script was run --
+    putting it in the environment now has no effect here and only affects
+    subprocesses).  That's okay: this script doesn't need it; if it ever does
+    need it, we'll have to do the sys.path.insert() thing here."""
+
+    current_pythonpath = os.getenv("PYTHONPATH") or ""
+    new_pythonpath = None
+    if current_pythonpath is None:
+        new_pythonpath = ots_bookkeeping_dir
+    elif current_pythonpath.find(ots_bookkeeping_dir) == -1:
+        new_pythonpath = current_pythonpath + ":" + ots_bookkeeping_dir
+    if new_pythonpath is not None:
+        os.putenv("PYTHONPATH", new_pythonpath)
+
+
+def set_env() -> None:
+    # Set up some environment and some global variables.
+    #
+    # The true global variables below are in all-caps, while
+    # intermediate helpers are in all-lower.
+    global OTS_DIR
+    OTS_DIR = os.environ["OTS_DIR"]
+    if OTS_DIR is None:
+        OTS_DIR = os.path.expanduser("~/OTS")
+    if not os.path.exists(OTS_DIR):
+        sys.exit(f"{OTS_DIR} does not exist, cannot proceed.")
+
+    ots_bookkeeping_dir = os.getenv("OTS_BOOKKEEPING_DIR")
+    if ots_bookkeeping_dir is None:
+        sys.exit(
+            """ERROR: The "OTS_BOOKKEEPING_DIR" environment variable must be set.
+       For more information, please see the documentation at
+       https://github.com/opentechstrategies/ots-bookkeeping"""
+        )
+
+    add_share_postings_to_pythonpath(ots_bookkeeping_dir)
+
+    balance_sheet.OTS_DIR = OTS_DIR
+    global BEAN_DIR
+    BEAN_DIR = os.path.join(OTS_DIR, "finances")
+    global BEAN_FILE
+    BEAN_FILE = os.path.join(BEAN_DIR, "main.beancount")
+    income_statement.BEAN_FILE = BEAN_FILE
+    balance_sheet.BEAN_FILE = BEAN_FILE
+
+    global THREADFIN_PGM
+    THREADFIN_PGM = os.path.join(ots_bookkeeping_dir, "threadfin", "bin", "threadfin")
+
+    # Commenting out these next two lines because the resulting CRM variable is
+    # never used.
+    # crm_file = os.path.join(OTS_DIR, "org", "crm.org")
+    # CRM = org.makelist(os.path.expanduser(crm_file))
+
+    # Again, we don't actually do anything with the password store, so let's
+    # comment this out for now.
+    # PASSWORD_STORE = os.path.expanduser("~/.ots-password-store")
+    # if not os.path.isdir(PASSWORD_STORE):
+    #    PASSWORD_STORE = os.path.expanduser("~/.password-store")
+    #    if not os.path.isdir(PASSWORD_STORE):
+    #        err("Unable to find password store.")
+
+    # (The VERBOSE global could probably go away, since we already have local
+    # 'verbose' parameters derived from '--verbose'/'--no-verbose' command-line
+    # flags and passed around as needed.  The only place that would need
+    # adjusting is get_nonemployee_income() and its caller do_f1099(), I think.
+    # Leaving it for now, though, as I don't know this code well yet.  -Karl)
+    global VERBOSE
+    VERBOSE = False
+
+
+if __name__ == "__main__":
+    set_env()
+    check_beancount()
+    cli.add_command(balance_sheet.balance_sheet)
+    cli.add_command(income_statement.income_statement)
+    cli()
+
+# Local Variables:
+# mode: python
+# fill-column: 76
+# End:
