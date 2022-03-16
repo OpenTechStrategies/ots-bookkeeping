@@ -35,8 +35,13 @@ class IRSForm():
                 names.append(lines[1].split(' ')[1])
         return names
 
+# Note that we have been using ../fill-1099 for this since appx early 2021.  
+# However, the code below might actually work fine, and the only issue
+# might be that Karl just couldn't figure out how to get it working
+# faster than he could write ../fill-1099.  We should make an informed
+# decision about this at some point.
 class F1099(IRSForm):
-    """Class for managing 1099 forms"""
+    """Class for managing 1099 forms."""
     def __init__(self, year, name, w9, fname=None):
         """YEAR is an integer with the tax year in it.
 

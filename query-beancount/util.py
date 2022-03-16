@@ -80,7 +80,7 @@ def parse_date(string: str, ignore_error: bool = False) -> Optional[datetime.dat
 # We should just use the objects Beancount can already make for us.
 # I'll do some more research and figure this out.  -Karl, 2022-02-25
 def parse_positions(lines: list) -> list:
-    """Given a list of postion input lines, return a list of this form
+    """Given a list of position input lines, return a list of the form
 
       [[amount, date, account, payee],
        [amount, date, account, payee],
@@ -89,7 +89,7 @@ def parse_positions(lines: list) -> list:
 
     in which amounts are numbers and the rest are strings, and in
     which any given combination of date, partner-combined account, and
-    payee only occurs once (i.e., they are combined)
+    payee only occurs once (i.e., they are combined).
 
     For example, given input list LINES of strings like this:
 

@@ -386,10 +386,10 @@ def add_share_postings_to_pythonpath(ots_bookkeeping_dir: str) -> None:
     main.beancount.  The bean-* programs will not inherit our sys.path, so
     instead we have to do this in the environment.  Interestingly, that means
     that this script itself will not have the modified PYTHONPATH (it would have
-    needed to be in to in the environment already when this script was run --
-    putting it in the environment now has no effect here and only affects
-    subprocesses).  That's okay: this script doesn't need it; if it ever does
-    need it, we'll have to do the sys.path.insert() thing here."""
+    needed to be in the environment already when this script was run -- putting
+    it in the environment now has no effect here and only affects subprocesses).  
+    That's okay: this script doesn't need it; if it ever does, then we'll just
+    do the sys.path.insert() thing here."""
 
     current_pythonpath = os.getenv("PYTHONPATH") or ""
     new_pythonpath = None
