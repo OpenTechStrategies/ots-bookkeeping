@@ -1,5 +1,5 @@
-Click>=7.0
+Click==8.1
 fuzzywuzzy==0.18.0
-py-moneyed==0.8.0
-PyYAML==5.3
-python-Levenshtein
+py-moneyed==2.0
+PyYAML==6.0
+python-Levenshtein==0.12.2
