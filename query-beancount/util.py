@@ -114,12 +114,12 @@ def parse_positions(lines: list) -> list:
         components = line.split()
         date = components[0]
         acct = components[1]
-        # TODO: This is tech debt.  It manually reverses the effect
-        # of the 'share_postings' plugin, but without consulting the
-        # actual line in main.beancount that specifies the sharing,
-        # namely, 'plugin "plugins.share_postings" "James Karl"'.
-        # As of 2022-02-25, I've decided I can live with this, but
-        # it'll be painful if you remind me of it, so please don't.
+        # TECH-DEBT: This code manually reverses the effect of the
+        # 'share_postings' plugin, but without consulting the actual
+        # line in main.beancount that specifies the sharing, namely,
+        # 'plugin "plugins.share_postings" "James Karl"'.  As of
+        # 2022-02-25, I've decided I can live with this, but it'll be
+        # painful if you remind me of it, so please don't.
         sharing_elision = "..."
         if ":James:" in acct:
             acct = acct.replace(":James:", f":{sharing_elision}:")
