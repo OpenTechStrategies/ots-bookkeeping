@@ -3,4 +3,3 @@ fuzzywuzzy==0.18.0
 py-moneyed==0.8.0
 PyYAML==5.3
 python-Levenshtein
-petl
