@@ -114,6 +114,74 @@ def all() -> None:
 
 
 @cli.command()
+@click.argument("client")
+@click.argument("date")
+@click.option("--verbose/--no-verbose", default=False)
+def client(client: str, date: str, verbose: bool) -> None:
+    """Show revenue and expenses for CLIENT within DATE.
+    *** WIP: THIS IS NOT DONE YET; PLEASE DO NOT USE IT. ***
+
+    CLIENT must exactly match one of our client codes from
+    accounts.beancount, i.e., the "FOO" in an account name like
+    "...:Client:FOO".
+
+    DATE can be YYYY, YYYY/MM, or YYYY/MM/DD.
+    Dates of the first and second forms indicate ranges."""
+    global VERBOSE
+    VERBOSE = verbose
+
+    # Each query starts as a list of individual conditions (strings) to be
+    # joined using "and" to form a composite 'WHERE' condition in SQL.
+    expense_query = [f"(account~'Expenses:.*:Client:{client}')",]
+    expense_query.append(date_to_sql_cond(date))
+    # Of the four account lines available in an invoice-satisfaction entry...
+    #
+    #   Income:Receivable:Karl:James:FOO                             5.00.00 USD
+    #   * Assets:Receivable:Karl:James:FOO                          -5.00.00 USD
+    #   * Assets:Checking:Karl:James                                 5.00.00 USD
+    #   Income:Karl:James:FOO                                       -5.00.00 USD
+    #
+    # ...the first two are "invisible" to our query because they're zeroed
+    # out by the corresponding balancing lines in the original invoice-sent
+    # entry, and the "Assets:Checking" line doesn't help us here because it
+    # doesn't have the client code ("FOO") on it.  That leaves just the the
+    # partner-income line as our only option.  So we use it, which means...
+    # TECH-DEBT: ...a dependency on raw partner names below.  (We can't just
+    # match a string that has "Income:" followed by any string other than
+    # "Receivable:" because that's not easy with regexps, for deep reasons
+    # involving DFAs -- see https://cs.stackexchange.com/questions/11787/\
+    # regular-expression-for-the-strings-without-a-particular-substring
+    # if you're curious.)
+    income_query = [f"(account~'Income:(James|Karl).*:{client}')",]
+    income_query.append(date_to_sql_cond(date))
+
+    # Now make them into real queries:
+    income_query = "SELECT date, account, position, payee WHERE %s" \
+        % " and ".join(income_query)
+    expense_query = "SELECT date, account, position, payee WHERE %s" \
+        % " and ".join(expense_query)
+
+    if VERBOSE:
+        print(income_query)
+        print(expense_query)
+
+    income_lines = bean_query(BEAN_FILE, income_query).strip().split("\n")
+    expense_lines = bean_query(BEAN_FILE, expense_query).strip().split("\n")
+    # TODO: Next, parse out the amounts (keying expense amounts by payee,
+    # for reporting purposes), subtract total expenses from total income
+    # (note that income is given to us negative) and print the results.
+    # However, until that's all done, we just print the query output:
+    print("Income for %s" % client)
+    for line in income_lines:
+        print(line)
+    print("")
+    print("Expense for %s" % client)
+    for line in expense_lines:
+        print(line)
+    print("")
+
+
+@cli.command()
 @click.argument("payee")
 @click.argument("date")
 @click.option("--verbose/--no-verbose", default=False)
