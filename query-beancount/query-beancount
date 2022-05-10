@@ -1,53 +1,44 @@
 #!/usr/bin/env python3
 
-"""
+"""query-beancount: ask various questions of OTS's beancount ledger
+
 # Dependencies
-    pip install -r requirements
+
+  $ pip install -r requirements.txt
 
 Or get them from debian:
 
-   apt-get install faketime python3-click python3-fuzzywuzzy
-   python3-levenshtein python3-moneyed python3-yaml python3-svgwrite
+  $ apt-get install faketime python3-click python3-fuzzywuzzy \
+    python3-levenshtein python3-moneyed python3-yaml python3-svgwrite
 
-# Use
+# Usage
 
-example: To generate 1099 for Frank Duncan:
+  $ ./query-beancount COMMAND [COMMAND-SPECIFIC PARAMETERS]
 
-    qb f1099 --year 2018 --payee "Frank Duncan"
+For example, to view how much we paid Frank Duncan in 2021, do:
 
-example: To generate 1099 for people listed in in contractors.contractors in contractors.yml:
+  $ ./query-beancount expenses "Frank Duncan" 2021
 
-    qb f1099 --year=2018
+To see a list of all commands, do:
 
-# Features Wanted
+  $ ./query-beancount --help
 
-Here's a list of things we wish this script did:
+# Features We Might Want (Again) Some Day
 
-if [ -z ${QUERY_CMD} ]; then
-	echo "Usage: query-ledger SUBCOMMAND [PERIOD]"
-	echo ""
-	echo "  Available subcommands:"
-	echo "  ======================"
-	echo ""
-	#  echo '    (Note: PERIOD is usually a year in YYYY format,'
-	#  echo '     but can be an interval like "last 24 months")'
-	echo ""
-	echo "  'all':             show balances for all accounts"
-	echo "  'top':             show balances for just top-level accounts"
-	echo "  'xml':             express ledger file in GnuCash-readable XML"
-	echo "  'draw PERIOD':     show how much each partner has drawn in PERIOD"
-	#  echo "  'equity':         show how much each partner has in current equity"
-	echo "  'receipts PERIOD': show gross receipts for PERIOD."
-	echo "  'expenses PERIOD': show expenses for PERIOD"
-	echo "  'profit YYYY':     show profit-&-loss statement for year YYYY."
-	echo "  'receivable':      show outstanding receivables"
-	echo "  'payable':         show outstanding payables"
-	echo "  'unbilled':        show unbilled work"
-	echo "  'activity PERIOD': print entries+balances for PERIOD, sorted by date"
-	echo "  'validate':        say whether or not the ledger is currently valid"
-	echo "                     (if invalid, show details and exit with error)"
-	exit 0
-fi
+The commands that our old 'query-ledger' shell script supported -- er, for
+various values of "supported" -- but that we haven't yet ported over to
+'query-beancount' are listed below:
+
+  'top':             show balances for just top-level accounts"
+  'xml':             express ledger file in GnuCash-readable XML"
+  'draw PERIOD':     show how much each partner has drawn in PERIOD"
+  'equity':          show how much each partner has in current equity"
+  'receipts PERIOD': show gross receipts for PERIOD."
+  'profit YYYY':     show profit-&-loss statement for year YYYY."
+  'receivable':      show outstanding receivables"
+  'payable':         show outstanding payables"
+  'unbilled':        show unbilled work"
+  'activity PERIOD': print entries+balances for PERIOD, sorted by date"
 """
 
 
