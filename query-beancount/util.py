@@ -160,11 +160,11 @@ def date_to_sql_cond(date: str) -> str:
     (Should we implement YYYY[/MM[/DD]]-YYYY[/MM[/DD]] ranges too?)"""
     if re.match("^[0-9]{4}$", date):
         return f"(date >= {date}-01-01 and date < {str(int(date) + 1)}-01-01)"
-    elif match := re.match("^([0-9]{4})[-/]?([0-9]{2})$", date):
-        y = match.group(1)
-        this_m = match.group(2)
-        next_m = f"{((int(match.group(2)) % 12) + 1):02}"
-        return f"(date >= {y}-{this_m}-01 and date < {y}-{next_m}-01)"
+    elif m := re.match("^([0-9]{4})[-/]?([0-9]{2})$", date):
+        y = m.group(1)
+        this_mon = m.group(2)
+        next_mon = f"{((int(m.group(2)) % 12) + 1):02}"
+        return f"(date >= {y}-{this_mon}-01 and date < {y}-{next_mon}-01)"
     else:
         return f"(date={date})"
 
