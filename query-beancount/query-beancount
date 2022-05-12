@@ -168,18 +168,70 @@ def client(client: str, date: str, verbose: bool) -> None:
 
     income_lines = bean_query(BEAN_FILE, income_query).strip().split("\n")
     expense_lines = bean_query(BEAN_FILE, expense_query).strip().split("\n")
-    # TODO: Next, parse out the amounts (keying expense amounts by payee,
-    # for reporting purposes), subtract total expenses from total income
-    # (note that income is given to us negative) and print the results.
-    # However, until that's all done, we just print the query output:
-    print("Income for %s" % client)
-    for line in income_lines:
+
+    if VERBOSE:
+        print("Income for %s" % client)
+        for line in income_lines:
+            print(line)
+        print("")
+        print("Expenses for %s" % client)
+        for line in expense_lines:
+            print(line)
+        print("")        
+
+    # TECH-DEBT: The two sections below are quite similar to code in
+    # expenses().  Consider abstracting this functionality, before
+    # copying-and-pasting it again.
+
+    # Show the income.
+    date_re = re.compile("\\d{4}-\\d{2}-\\d{2}")
+    income_lines = bean_query(BEAN_FILE, income_query).strip().split("\n")
+    income_lines = [line.strip() for line in income_lines if date_re.match(line) is not None]
+    total_income = 0
+    longest_len = 0
+    for item in parse_positions(income_lines):
+        date     = item[0]
+        acct     = item[1]
+        amt      = 0 - item[2]  # flip negative number to positive
+        amt_str  = f"{amt:-14.2f}"
+        payee    = item[3]  # Note that "payee" here is the client, not us
+        line = f"{date}   {amt_str} {payee}"
         print(line)
+        longest_len = max(len(line), longest_len)
+        total_income += amt
+    print("-" * longest_len)
+    print(f"Total income: {total_income:-13.2f}")
+
     print("")
-    print("Expense for %s" % client)
-    for line in expense_lines:
+
+    # Show the expenses, grouping by payee for reporting purposes.
+    expense_lines = bean_query(BEAN_FILE, expense_query).strip().split("\n")
+    expense_lines = [line.strip() for line in expense_lines if date_re.match(line) is not None]
+    total_expenses = 0
+    payee_groups = { }
+    for item in parse_positions(expense_lines):
+        ignored_date = item[0]
+        ignored_acct = item[1]
+        amt          = 0 - item[2]  # flip positive number to negative
+        payee        = item[3]
+        total_expenses += amt
+        payee_groups[payee] = payee_groups.get(payee, 0) + amt
+    longest_len = 0
+    for group_name, group_total in payee_groups.items():
+        line = f"(aggregated) {group_total:-14.2f} {group_name}"
+        longest_len = max(len(line), longest_len)
         print(line)
+    print("-" * longest_len)
+    print(f"Total expenses: {total_expenses:-11.2f}")
+
+    # Then subtract total expenses from total income and print the result.
+    # (Actually, though, add them, because total expenses is negative.)
     print("")
+    net_income = total_income + total_expenses
+    line = f"Net income: {net_income:-15.2f}"
+    print("-" * len(line))
+    print(line)
+    print("-" * len(line))
 
 
 @cli.command()
@@ -206,6 +258,10 @@ def expenses(payee: str, date: str, verbose: bool) -> None:
 
     if VERBOSE:
         print(query)
+
+    # TECH-DEBT: The two sections below are quite similar to code in
+    # client().  Consider abstracting this functionality, before
+    # copying-and-pasting it again.
 
     lines = bean_query(BEAN_FILE, query).strip().split("\n")
     lines = [line.strip() for line in lines if "Expenses" in line]
