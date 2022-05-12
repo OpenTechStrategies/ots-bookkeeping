@@ -1,6 +1,7 @@
 VERBOSE = False
 
 import datetime
+import calendar
 import os
 import re
 import subprocess
@@ -155,18 +156,124 @@ def date_to_sql_cond(date: str) -> str:
     that matches that month.  For example, "2021-02" would become
     "(date >= 2021-02-01 and date < 2021-03-01)".
 
-    Otherwise, just return DATE and hope it's a legit date.
+    If DATE is like YYYY[[/]MM[[/]DD]]-YYYY[[/]MM[[/]DD]], where
+    square braces surround optional things, then return a condition
+    matching that date range.   For example, "2020-2022/05" would
+    become "(date >= 2020-01-01 and date < 2022-06-01)".
 
-    (Should we implement YYYY[/MM[/DD]]-YYYY[/MM[/DD]] ranges too?)"""
+    Otherwise, just return DATE and hope it's a legit date."""
+    # Hey, if you ever want some inputs to test this with, try these:
+    #
+    #   2020
+    #   2020/05
+    #   2020-05
+    #   2020/12
+    #   2020-12
+    #   2020-2022
+    #   2020/02-2022
+    #   2020/02/01-2022
+    #   2020/02/10-2022
+    #   2020/02/28-2022
+    #   2020/02/29-2022
+    #   2018-2020
+    #   2018-2020/02
+    #   2018-2020/02/01
+    #   2018-2020/02/10
+    #   2018-2020/02/28
+    #   2018-2020/02/29
+    #   2018/05/01-2020
+    #   2018/05/15-2020/02
+    #   2018/05/30-2020/02/01
+    #   2018/05/31-2020/02/10
+    #   2018/06/01-2020/02/28
+    #   2018/12-2020/02/29
+    #   2018/12/30-2020/02/29
+    #   2018/12/31-2020/02/28
+    #   2018/12/31-2020/02/29
+    #   2018/05/01-2021
+    #   2018/05/15-2021/02
+    #   2018/05/30-2021/02/01
+    #   2018/05/31-2021/02/10
+    #   2018/06/01-2021/02/28
+    #   2018/12-2021/02/29
+    #   2018/12/30-2021/02/29
+    #   2018/12/31-2021/02/28
+    #   2018/12/31-2021/02/29
+    #   2018/12/31-2021/0228
+    #   2018/12/31-2021/0228
+    #   201812/31-2021/0228
+    #   2018/1231-202102/28
+    #   2018/1231-202102/29
+    #   2018/1231-202102/29
+    #   2018/1231-202002/29
+    #   2018/1231-202102/28
+    #   2018/1231-202102/28
     if re.match("^[0-9]{4}$", date):
         return f"(date >= {date}-01-01 and date < {str(int(date) + 1)}-01-01)"
-    elif m := re.match("^([0-9]{4})[-/]?([0-9]{2})$", date):
-        y = m.group(1)
-        this_mon = m.group(2)
-        next_mon = f"{((int(m.group(2)) % 12) + 1):02}"
-        return f"(date >= {y}-{this_mon}-01 and date < {y}-{next_mon}-01)"
     else:
-        return f"(date={date})"
+        beg_year  = None
+        beg_month = None
+        beg_day   = None
+        end_year  = None
+        end_month = None
+        end_day   = None
+        def validate_date(b_y, b_m, b_d, e_y, e_m, e_d):
+            """Throw a ValueError exception if either date is invalid."""
+            try:
+                datetime.datetime(year=int(b_y), month=int(b_m), day=int(b_d))
+            except ValueError as e:
+                raise ValueError(f"date {b_y}/{b_m}/{b_d}: {e}")
+            try:
+                datetime.datetime(year=int(e_y), month=int(e_m), day=int(e_d))
+            except ValueError as e:
+                raise ValueError(f"date {e_y}/{e_m}/{e_d}: {e}")
+        if m := re.match("^([0-9]{4})[-/]?([0-9]{2})$", date):
+            beg_year = m.group(1)
+            beg_month = m.group(2)
+            beg_day = "01"
+            end_year = beg_year
+            end_month = f"{((int(m.group(2)) % 12) + 1):02}"
+            if end_month == "01":  # we crossed a year boundary
+                end_year = f"{(int(beg_year) + 1):02}"
+            end_day = "01"
+            validate_date(beg_year, beg_month, beg_day, end_year, end_month, end_day)
+        elif m := re.match("^([0-9]{4})/?([0-9]{2})?/?([0-9]{2})?-([0-9]{4})/?([0-9]{2})?/?([0-9]{2})?$", date):
+            beg_year  = m.group(1)
+            beg_month = m.group(2)
+            beg_day   = m.group(3)
+            end_year  = m.group(4)
+            end_month = m.group(5)
+            end_day   = m.group(6)
+            if beg_month is None:
+                beg_month = "01"
+            if beg_day is None:
+                beg_day = "01"
+            if end_month is None:
+                end_month = "12"
+            if end_day is None:
+                end_day = f"{(calendar.monthrange(int(end_year), int(end_month))[1]):02}"
+            validate_date(beg_year, beg_month, beg_day, end_year, end_month, end_day)
+            # Handle the edge cases.
+            if end_month == "12":
+                if end_day == "31":
+                    end_year = f"{(int(end_year) + 1):02}"
+                    end_month = "01"
+                    end_day = "01"
+                else:
+                    end_day = f"{(int(end_day) + 1):02}"
+            else:
+                last_day = f"{(calendar.monthrange(int(end_year), int(end_month))[1]):02}"
+                if end_day == last_day:
+                    end_month = f"{(int(end_month) + 1):02}"
+                    end_day = "01"
+                else:
+                    end_day = f"{(int(end_day) + 1):02}"
+        else:
+            # If didn't match any known pattern, then just return the
+            # original date as a query condition and hope it's valid.
+            return f"(date={date})"
+        # Otherwise, build a custom date-range query condition.
+        return f"(date >= {beg_year}-{beg_month}-{beg_day} and date < {end_year}-{end_month}-{end_day})"
 
 
 def parse_money(
