@@ -146,6 +146,7 @@ def client(client: str, date: str, verbose: bool) -> None:
     # entry, and the "Assets:Checking" line doesn't help us here because it
     # doesn't have the client code ("FOO") on it.  That leaves just the the
     # partner-income line as our only option.  So we use it, which means...
+    # 
     # TECH-DEBT: ...a dependency on raw partner names below.  (We can't just
     # match a string that has "Income:" followed by any string other than
     # "Receivable:" because that's not easy with regexps, for deep reasons
