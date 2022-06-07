@@ -123,7 +123,7 @@ def client(client: str, date: str, verbose: bool) -> None:
 
     CLIENT must exactly match one of our client codes from
     accounts.beancount, i.e., the "FOO" in an account name like
-    "...:Client:FOO".
+    "...:Client:FOO" or "...:Client-Development:FOO".
 
     DATE can be YYYY, YYYY/MM, or YYYY/MM/DD.
     Dates of the first and second forms indicate ranges."""
@@ -132,7 +132,15 @@ def client(client: str, date: str, verbose: bool) -> None:
 
     # Each query starts as a list of individual conditions (strings) to be
     # joined using "and" to form a composite 'WHERE' condition in SQL.
-    expense_query = [f"(account~'Expenses:.*:Client:{client}')",]
+
+    # We look in both ":Client:Foo" and ":Client-Development:Foo".  That way
+    # we pick up speculative expenses too (e.g., Arches development).
+    # 
+    # FIXME: This probably doesn't work with client sub-accounts like
+    # "Red-Cross:DCSOps" or "Econ-ARK:Postage".  The solution is to
+    # put "(:.*)?" after the client name, I think, but I'd like to have
+    # at least a rudimentary regression test plan in place first.
+    expense_query = [f"(account~'Expenses:.*:Client(-Development)?:{client}')",]
     expense_query.append(date_to_sql_cond(date))
     # Of the four account lines available in an invoice-satisfaction entry...
     #
@@ -146,6 +154,11 @@ def client(client: str, date: str, verbose: bool) -> None:
     # entry, and the "Assets:Checking" line doesn't help us here because it
     # doesn't have the client code ("FOO") on it.  That leaves just the the
     # partner-income line as our only option.  So we use it, which means...
+    # 
+    # FIXME: This also probably doesn't work with client sub-accounts like
+    # "Red-Cross:DCSOps" or "Econ-ARK:Postage".  The solution is to
+    # put "(:.*)?" after the client name, I think, but I'd like to have
+    # at least a rudimentary regression test plan in place first.
     # 
     # TECH-DEBT: ...a dependency on raw partner names below.  (We can't just
     # match a string that has "Income:" followed by any string other than
