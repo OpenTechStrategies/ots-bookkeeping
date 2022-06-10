@@ -119,14 +119,18 @@ def all() -> None:
 @click.option("--verbose/--no-verbose", default=False)
 def client(client: str, date: str, verbose: bool) -> None:
     """Show revenue and expenses for CLIENT within DATE.
-    *** WIP: THIS IS NOT DONE YET; PLEASE DO NOT USE IT. ***
 
     CLIENT must exactly match one of our client codes from
-    accounts.beancount, i.e., the "FOO" in an account name like
-    "...:Client:FOO" or "...:Client-Development:FOO".
+    accounts.beancount, i.e., the "FOO" in an account name like one of the
+    following:
 
-    DATE can be YYYY, YYYY/MM, or YYYY/MM/DD.
-    Dates of the first and second forms indicate ranges."""
+      ...:Client:FOO
+      ...:Client-Development:FOO
+      ...:Client:FOO:BAR
+      ...:Client-Development:FOO:BAR
+
+    DATE can be YYYY, YYYY/MM, YYYY/MM/DD, or any of the usual date range
+    forms.  See util.py:date_to_sql_cond() for details."""
     global VERBOSE
     VERBOSE = verbose
 
@@ -136,10 +140,15 @@ def client(client: str, date: str, verbose: bool) -> None:
     # We look in both ":Client:Foo" and ":Client-Development:Foo".  That way
     # we pick up speculative expenses too (e.g., Arches development).
     # 
-    # FIXME: This probably doesn't work with client sub-accounts like
-    # "Red-Cross:DCSOps" or "Econ-ARK:Postage".  The solution is to
-    # put "(:.*)?" after the client name, I think, but I'd like to have
-    # at least a rudimentary regression test plan in place first.
+    # TECH-DEBT: This works with sub-client accounts like "Red-Cross:DCSOps",
+    # "Econ-ARK:Postage", etc, but only because of how bean-query happens to
+    # interpret regexps.  It would be better to make the possibility of
+    # those kinds of matches explicit with a "(:.*)?" after the client name.
+    # 
+    # However, I'd like to have at least a rudimentary regression test suite
+    # in place before making that change here and in the similar query
+    # string (see a bit farther down) for income.  See commit fd927f9b5a for
+    # a quick way to make some basic regression tests.
     expense_query = [f"(account~'Expenses:.*:Client(-Development)?:{client}')",]
     expense_query.append(date_to_sql_cond(date))
     # Of the four account lines available in an invoice-satisfaction entry...
@@ -154,11 +163,6 @@ def client(client: str, date: str, verbose: bool) -> None:
     # entry, and the "Assets:Checking" line doesn't help us here because it
     # doesn't have the client code ("FOO") on it.  That leaves just the the
     # partner-income line as our only option.  So we use it, which means...
-    # 
-    # FIXME: This also probably doesn't work with client sub-accounts like
-    # "Red-Cross:DCSOps" or "Econ-ARK:Postage".  The solution is to
-    # put "(:.*)?" after the client name, I think, but I'd like to have
-    # at least a rudimentary regression test plan in place first.
     # 
     # TECH-DEBT: ...a dependency on raw partner names below.  (We can't just
     # match a string that has "Income:" followed by any string other than
