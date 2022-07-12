@@ -137,20 +137,6 @@ def client(client: str, date: str, verbose: bool) -> None:
     # Each query starts as a list of individual conditions (strings) to be
     # joined using "and" to form a composite 'WHERE' condition in SQL.
 
-    # We look in both ":Client:Foo" and ":Client-Development:Foo".  That way
-    # we pick up speculative expenses too (e.g., Arches development).
-    # 
-    # TECH-DEBT: This works with sub-client accounts like "Red-Cross:DCSOps",
-    # "Econ-ARK:Postage", etc, but only because of how bean-query happens to
-    # interpret regexps.  It would be better to make the possibility of
-    # those kinds of matches explicit with a "(:.*)?" after the client name.
-    # 
-    # However, I'd like to have at least a rudimentary regression test suite
-    # in place before making that change here and in the similar query
-    # string (see a bit farther down) for income.  See commit fd927f9b5a for
-    # a quick way to make some basic regression tests.
-    expense_query = [f"(account~'Expenses:.*:Client(-Development)?:{client}')",]
-    expense_query.append(date_to_sql_cond(date))
     # Of the four account lines available in an invoice-satisfaction entry...
     #
     #   Income:Receivable:Karl:James:FOO                             5.00.00 USD
@@ -172,6 +158,21 @@ def client(client: str, date: str, verbose: bool) -> None:
     # if you're curious.)
     income_query = [f"(account~'Income:(James|Karl).*:{client}')",]
     income_query.append(date_to_sql_cond(date))
+
+    # We look in both ":Client:Foo" and ":Client-Development:Foo".  That way
+    # we pick up speculative expenses too (e.g., Arches development).
+    # 
+    # TECH-DEBT: This works with sub-client accounts like "Red-Cross:DCSOps",
+    # "Econ-ARK:Postage", etc, but only because of how bean-query happens to
+    # interpret regexps.  It would be better to make the possibility of
+    # those kinds of matches explicit with a "(:.*)?" after the client name.
+    # 
+    # However, I'd like to have at least a rudimentary regression test suite
+    # in place before making that change here and in the similar query
+    # string (see a bit farther down) for income.  See commit fd927f9b5a for
+    # a quick way to make some basic regression tests.
+    expense_query = [f"(account~'Expenses:.*:Client(-Development)?:{client}')",]
+    expense_query.append(date_to_sql_cond(date))
 
     # Now make them into real queries:
     income_query = "SELECT date, account, position, payee WHERE %s" \
