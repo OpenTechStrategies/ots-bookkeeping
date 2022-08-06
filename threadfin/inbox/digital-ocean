@@ -19,17 +19,16 @@ already matched.
 """
 
 import argparse
-from dateutil import parser as dateparse
 import os
 import re
 import sys
-import yaml
 
 import util as u
+import yaml
+from dateutil import parser as dateparse
 from sort import sort_beancount_text
 
-regex = {
-    'charge_line': re.compile(r'\$\d*\.\d\d$')}
+regex = {"charge_line": re.compile(r"\$\d*\.\d\d$")}
 
 
 def parse(fspec, after):
@@ -64,7 +63,11 @@ def parse(fspec, after):
         if "Invoice Number" in line or "Invoice number:" in line:
             invoice_num = line.split(" ")[-1]
             continue
-        if "Date Issued" in line or "Date of issue:" in line or "Date of Issue:" in line:
+        if (
+            "Date Issued" in line
+            or "Date of issue:" in line
+            or "Date of Issue:" in line
+        ):
             invoice_date = " ".join(line.split(" ")[-3:])
             invoice_date = dateparse.parse(invoice_date)
             if invoice_date <= after:
@@ -79,9 +82,9 @@ def parse(fspec, after):
         if line.startswith("Final invoice for"):
             billing_period = " ".join(line.split(" ")[4:8])
             continue
-        if regex['charge_line'].search(line):
-            if line.startswith(' ') and 'Total' in line:
-                run_total += u.parse_money(line.strip().split(' ')[1])
+        if regex["charge_line"].search(line):
+            if line.startswith(" ") and "Total" in line:
+                run_total += u.parse_money(line.strip().split(" ")[1])
             elif line.startswith("Total due") or line.startswith("Total Due"):
                 continue
             elif line.startswith("Total usage charges"):
@@ -91,33 +94,42 @@ def parse(fspec, after):
                 parts = line.split(" ")
                 amt = u.parse_money(parts[-1])
                 descrip = "|".join(parts[:-1]).strip()
-                while '||' in descrip:
-                    descrip = descrip.replace('||', '|')
-                charges.append({'descrip': descrip,
-                                'amt': amt,
-                                'total': charge_total,
-                                'category': category,
-                                'invoice_num': invoice_num,
-                                'date': date,
-                                'invoice_date': invoice_date,
-                                'billing_period': billing_period,
-                                })
+                while "||" in descrip:
+                    descrip = descrip.replace("||", "|")
+                charges.append(
+                    {
+                        "descrip": descrip,
+                        "amt": amt,
+                        "total": charge_total,
+                        "category": category,
+                        "invoice_num": invoice_num,
+                        "date": date,
+                        "invoice_date": invoice_date,
+                        "billing_period": billing_period,
+                    }
+                )
                 charge_total += amt
 
     # Sanity checks
     if total != 0:
         if run_total != 0:
             if total != run_total:
-                u.err(f"Parse error in {fspec}: invoice total ({total})" +
-                      f" and running total ({run_total}) disagree")
+                u.err(
+                    f"Parse error in {fspec}: invoice total ({total})"
+                    + f" and running total ({run_total}) disagree"
+                )
         if charge_total != 0:
             if total != charge_total:
-                u.err(f"Parse error in {fspec}: chargees total " +
-                      f"({charge_total}) and invoice total ({total}) disagree")
+                u.err(
+                    f"Parse error in {fspec}: chargees total "
+                    + f"({charge_total}) and invoice total ({total}) disagree"
+                )
     if run_total != 0:
         if run_total != charge_total:
-            u.err(f"Parse error in {fspec}: running total ({run_total})" +
-                  f" and charge total ({charge_total}) disagree")
+            u.err(
+                f"Parse error in {fspec}: running total ({run_total})"
+                + f" and charge total ({charge_total}) disagree"
+            )
     if run_total + total == 0:
         u.err(f"Can't find any entries in {fspec}")
 
@@ -156,18 +168,18 @@ def assign_to_account(accts, charge, regexes):
         if reg == "default":
             default = acct
             continue
-        if re.search(reg, charge['descrip']):
-            accts[acct] = accts.get(acct, 0) + charge['amt']
+        if re.search(reg, charge["descrip"]):
+            accts[acct] = accts.get(acct, 0) + charge["amt"]
             return
 
     # We didn't find a matching account, so use the default account if
     # there is one.
     if default:
-        accts[acct] = accts.get(acct, 0) + charge['amt']
+        accts[acct] = accts.get(acct, 0) + charge["amt"]
         return
 
     # Complain that we couldn't find an account
-    u.err("Can't find matching account for charge: " + charge['descrip'])
+    u.err("Can't find matching account for charge: " + charge["descrip"])
 
 
 def make_txs(charges, parse_info, fspec):
@@ -185,43 +197,54 @@ def make_txs(charges, parse_info, fspec):
 
     template_data = {}
     template_data.update(charges[-1])  # grab invoice_num and billing period
-    template_data['date'] = charges[0]['date'].strftime("%Y-%m-%d")
-    template_data['fspec'] = fspec
-    template_data['charges'] = "\n".join([
-        f"  {c['descrip'].split('|')[0]:40} {c['category']:8} {c['amt'].amount:>7}"
-        for c in sorted(charges, key=lambda x: x['descrip'])])
-    comment = parse_info['comment'].strip().format_map(template_data)
+    template_data["date"] = charges[0]["date"].strftime("%Y-%m-%d")
+    template_data["fspec"] = fspec
+    template_data["charges"] = "\n".join(
+        [
+            f"  {c['descrip'].split('|')[0]:40} {c['category']:8} {c['amt'].amount:>7}"
+            for c in sorted(charges, key=lambda x: x["descrip"])
+        ]
+    )
+    comment = parse_info["comment"].strip().format_map(template_data)
     comment = "\n".join(["    " + l for l in comment.split("\n")])
 
     # Build entry
-    entry = f'{template_data["date"]} txn "Digital Ocean" ""\n  comment: "\n{comment}"\n'
+    entry = (
+        f'{template_data["date"]} txn "Digital Ocean" ""\n  comment: "\n{comment}"\n'
+    )
     debits = {}
     credits = {}
     for charge in charges:
-        assign_to_account(credits, charge, parse_info['credit'])
-        assign_to_account(debits, charge, parse_info['debit'])
+        assign_to_account(credits, charge, parse_info["credit"])
+        assign_to_account(debits, charge, parse_info["debit"])
     for acct, amt in debits.items():
         entry += f"  {acct:60} {f'{amt.amount} {amt.currency}':>10}\n"
     for acct, amt in credits.items():
         entry += f"  {acct:59} {f'{amt.amount * -1} {amt.currency}':>10}\n"
 
     # Sanity check
-    if (sum([amt for acct, amt in debits.items()]) !=
-            sum([amt for acct, amt in credits.items()])):
+    if sum([amt for acct, amt in debits.items()]) != sum(
+        [amt for acct, amt in credits.items()]
+    ):
         u.err(f"\nCredits and debits don't balance:\n\n{entry}")
 
     return entry
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Parse Digital Ocean invoices.')
-    parser.add_argument('dir', nargs="?", default=".",
-                        help="Directory with statement PDFs")
-    parser.add_argument('beancount', nargs="?", default="",
-                        help="Beancount file in which to place transactions")
-    parser.add_argument('--write', '-w', action="store_true",
-                        help="Write new entries to beancount file")
+    parser = argparse.ArgumentParser(description="Parse Digital Ocean invoices.")
+    parser.add_argument(
+        "dir", nargs="?", default=".", help="Directory with statement PDFs"
+    )
+    parser.add_argument(
+        "beancount",
+        nargs="?",
+        default="",
+        help="Beancount file in which to place transactions",
+    )
+    parser.add_argument(
+        "--write", "-w", action="store_true", help="Write new entries to beancount file"
+    )
     args = parser.parse_args()
 
     direc = args.dir
@@ -236,7 +259,7 @@ def main():
     parse_info = yaml.safe_load(u.slurp(os.path.join(direc, "parse.yml")))
     ret = ""
     for fname in os.listdir(direc):
-        if not fname.endswith('pdf'):
+        if not fname.endswith("pdf"):
             continue
         fspec = os.path.join(direc, fname)
         charges = parse(fspec, after)
@@ -244,8 +267,8 @@ def main():
 
             # Calculate a nice-looking path to the invoice
             fspec = os.path.abspath(fspec)
-            if fspec.startswith(os.environ['OTS_DIR']):
-                fspec = fspec[len(os.environ['OTS_DIR']) + 1:]
+            if fspec.startswith(os.environ["OTS_DIR"]):
+                fspec = fspec[len(os.environ["OTS_DIR"]) + 1 :]
 
             ret += make_txs(charges, parse_info, fspec)
 
@@ -253,7 +276,7 @@ def main():
 
     if ret.strip():
         if beancount and args.write:
-            with open(beancount, 'a') as fh:
+            with open(beancount, "a") as fh:
                 fh.write("\n" + ret)
         else:
             print(ret)

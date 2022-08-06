@@ -9,12 +9,11 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import beancount  # type: ignore
+import mustache
+import util as u
 from beancount import loader
 from dateutil import parser as dateparse
 from moneyed import Money  # type: ignore
-
-import mustache
-import util as u
 
 pp = pprint.PrettyPrinter(indent=4).pprint
 

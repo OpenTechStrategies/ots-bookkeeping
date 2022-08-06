@@ -4,13 +4,12 @@ import datetime
 import re
 import sys
 
-from dateutil import parser as dateparse
-
 # Our code
 import statement
 import transaction
 # from beancount.core.data import Transaction as BCTX
 import util as u
+from dateutil import parser as dateparse
 from statement import Block
 from util import parse_money
 

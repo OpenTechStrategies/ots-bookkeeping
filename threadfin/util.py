@@ -8,11 +8,10 @@ import time
 from typing import (Any, Dict, Iterator, Optional, Sequence, TypeVar, Union,
                     cast)
 
+import mustache
 import yaml
 from dateutil import parser as dateparse
 from moneyed import Money  # type: ignore
-
-import mustache
 
 VERBOSE = False
 
@@ -286,7 +285,7 @@ def pdf2txt(pdfname: str) -> str:
     txtname = os.path.splitext(pdfname)[0] + ".txt"
     if not os.path.exists(txtname):
         run_command("pdftotext -layout %s %s" % (pdfname, txtname))
-        txt = slurp(txtname)
+    txt = slurp(txtname)
     return txt
 
 

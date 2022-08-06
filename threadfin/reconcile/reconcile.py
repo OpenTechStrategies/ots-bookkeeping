@@ -7,10 +7,10 @@
 import datetime
 import os
 import pprint
+import sys
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import click
-
 import mustache
 import threadfin_beancount as beancount
 import util as u
@@ -22,7 +22,7 @@ class Account(Dict[str, Any]):
     """This is a dict.  It has some fields that let it represent an account.
 
     ledger_accounts -=> Assets:Checking etc
-    ledger_fname -=> The name of the beancount file
+    ledger_fname -=> String containing the name of the beancount file
     name -=> A string like 'main' or 'chase' that is the name of this account
     reg -=> the beancount register for this account
     txs -=> the transactions in that register
@@ -31,6 +31,9 @@ class Account(Dict[str, Any]):
 
     def __init__(self, account: Dict[str, Any]) -> None:
         dict.__init__(self, account)
+
+        self['ledger_accounts']:List[str] = account['ledger_accounts']
+
         self["reg"] = beancount.get_register(self)
         self["txs"] = self["reg"].get_txs()
         self.winnow_entries()
@@ -100,14 +103,11 @@ class Account(Dict[str, Any]):
 
 
 class Reconciler:
-    def __init__(
-        self,
-        ac1: Dict[str, Union[str, List]],
-        ac2: Dict[str, Union[str, List]],
+    def __init__(self, ac1:Account, ac2:Account,
         templates: Dict[str, str],
     ) -> None:
-        self.ac1 = Account(ac1)
-        self.ac2 = Account(ac2)
+        self.ac1 = ac1
+        self.ac2 = ac2
         self.templates = templates
 
     def get_latest_good_date(self) -> Tuple[Optional[datetime.date], datetime.date]:
@@ -251,9 +251,10 @@ def cli(
             accounts[account[0]]["ledger_accounts"] = r[account[0]]
             accounts[account[1]]["ledger_accounts"] = r[account[1]]
 
-    reconciler = Reconciler(
-        accounts[account[0]], accounts[account[1]], templates=template_dict
-    )
+    ac1 = Account(accounts[account[0]])
+    ac2 = Account(accounts[account[1]])
+    print("Accounts Loaded")
+    reconciler = Reconciler(ac1, ac2 , templates=template_dict)
     if date:
         reconciler.reconcile(date)
     else:

@@ -57,10 +57,10 @@ def sort_beancount_text(beancount_text: str) -> str:
         linestart = line.split(" ")[0]
 
         # Skip blanks.  We'll put appropriate blanks in later
-        if not line.strip():
-            if non_tx:
-                non_tx += "\n"
-            continue
+        # if not line.strip():
+        #     if non_tx:
+        #         non_tx += "\n"
+        #     continue
 
         if not linestart or not linestart[0] or linestart[0] in " \t":
             # We have an indented line
@@ -79,9 +79,13 @@ def sort_beancount_text(beancount_text: str) -> str:
             txs += line + "\n"
         else:
             # We have a non-indented line
-            if "=" in linestart:
+
+            # This '=' notation was present in ledger files, but beancount
+            # doesn't support them... yet.
+            # if "=" in linestart:
                 # Use effective date if specified
-                linestart = linestart.split("=")[1]
+                # linestart = linestart.split("=")[1]
+
             try:
                 dateparse.parse(linestart)
             except ValueError:
@@ -131,17 +135,12 @@ def sort_beancount_text(beancount_text: str) -> str:
 def cli(infile: str, write: bool = False) -> None:
     """Sort ledger by effective date.
 
-    We assume a ledger in which the first line of transactions start
-    in column 0 and that each succeeding line of the transaction is
-    indented with spaces and there are no blanks lines in
-    transactions.  We also assume that effective dates are specified
-    using the "date=date" notation and not bracket notation.
+    We assume a ledger in which the first line of transactions start in column
+    0 and that each succeeding line of the transaction is indented with spaces.
 
-    """
-
-    """We're going to do this manually rather than use any of our data
-    structures because we completely avoid any parsing error that
-    might sneak into a "parse and reproduce" cycle.
+    We're going to do this manually rather than use any of data structures
+    because we completely avoid any parsing error that might sneak into a
+    "parse and reproduce" cycle.
 
     """
     ret = sort_beancount_text(Path(infile).read_text())
