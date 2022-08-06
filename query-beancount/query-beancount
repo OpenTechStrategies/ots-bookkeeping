@@ -415,7 +415,7 @@ def reconcile(date: str = "") -> None:
     config = os.path.join(OTS_DIR, "finances", "query-beancount", "reconcile.yaml")
     if date:
         date = "--date %s" % date
-    print(run_command(f"threadfin reconcile --config {config} {date} main chase"))
+    os.system(f"threadfin reconcile --config {config} {date} main chase")
 
 
 @cli.command()
