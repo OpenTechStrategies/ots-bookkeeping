@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import sys
 import re
 import subprocess
 from pathlib import Path
@@ -9,29 +10,51 @@ from typing import Dict, List
 
 import click
 from dateutil import parser as dateparse
+import dateutil.parser
 
 
 def sorted_txs(transactions: str) -> str:
-    """TRANSACTIONS contains a portion of a ledger file with entries in it and
-    nothing else.
+    """Return transactions sorted by date.
 
-    Sort the entries and return value."""
+    TRANSACTIONS is a string that contain a portion of a ledger
+    file with entries in it and nothing else.
+
+    Sort the entries and return a string with them sorted.
+    """
     txs_sorted: Dict[datetime.datetime, List[str]]
     txs_sorted = {}  # keys are dates hashed to lists of txs on that date
-    txs = transactions.split("\n\n")
+    split_txs = transactions.split("\n\n")
+
+    ## Some of our transactions might have blank lines (e.g. in comments) and
+    ## they are now spread over multiple items in split_txs.  But we need one
+    ## tx per item, so let's consolidate.
+    txs = []
+    for i in range(0, len(split_txs)):
+        if not(split_txs[i].startswith(" ") or split_txs[i].startswith("\t")):
+            txs.append(split_txs[i])
+        else:
+            txs[-1]+="\n\n"+split_txs[i]
+
     for tx in txs:
-        linestart = tx.split(" ")[0]
+        # Get the start of the transaction, skipping comment lines
+        try:
+            linestart = [l for l in tx.split("\n") if not l.startswith(";")][0].split(" ")[0]
+        except IndexError:
+            sys.stderr.write("Error: free-floating comment not attached to a transaction.  We can't dateparse it, so we can't sort it.\n\nThe transaction:\n\n")
+            sys.stderr.write(tx)
+            sys.exit(-1)
 
-        # This next if-block is obsolete, right?  Beancount doesn't do
-        # effective dates.  But maybe we should teach it...
-        if "=" in linestart:
-            # Use effective date if specified
-            linestart = linestart.split("=")[1]
+        try:
+            d = dateparse.parse(linestart)
+        except dateutil.parser._parser.ParserError:
+            print("Bad tx:", tx)
+            print("LS:",linestart)
+            raise
 
-        d = dateparse.parse(linestart)
         if d not in txs_sorted:
             txs_sorted[d] = []
         txs_sorted[d].append(tx)
+
 
     ret = ""
     for d in sorted(txs_sorted.keys()):
@@ -40,94 +63,39 @@ def sorted_txs(transactions: str) -> str:
     return ret
 
 
-def print_sorted_txs(txs: str) -> None:
-    """TXS contains a portion of a ledger file with entries in it and nothing
-    else.
-
-    Sort the entries and output to the screen."""
-    print(sorted_txs(txs))
-
 
 def sort_beancount_text(beancount_text: str) -> str:
-    """BEANCOUNT_TEXT is the contents of a beancount file"""
-    ret = ""
-    txs = ""
-    non_tx = ""
-    for line in beancount_text.split("\n"):
+    """BEANCOUNT_TEXT is the contents of a beancount file
+
+    This func separates starting matter from the rest, then
+    passes the rest (i.e. the transactions) to sort_txs for
+    sorting.
+    """
+
+
+    ## Figure out what line our first transaction is one
+    lines = beancount_text.split("\n")
+    for l in range(0, len(lines)):
+        line = lines[l]
         linestart = line.split(" ")[0]
+        try:
+            dateparse.parse(linestart)
+        except dateutil.parser._parser.ParserError:
+            continue
+        break
 
-        # Skip blanks.  We'll put appropriate blanks in later
-        # if not line.strip():
-        #     if non_tx:
-        #         non_tx += "\n"
-        #     continue
-
-        if not linestart or not linestart[0] or linestart[0] in " \t":
-            # We have an indented line
-
-            # If we're in the middle of a non-tx, just add a blank
-            # line to the non-tx so it stays the same.
-            if non_tx:
-                non_tx += "\n"
-                continue
-
-            # If this is just a stray blank line, skip it
-            if not txs:
-                continue
-
-            # We have a line from a transaction (not the first line)
-            txs += line + "\n"
+    ## Rewind if there's a comment attached to this transaction
+    for i in range(l-1, -1, -1):
+        if lines[i].startswith(";"):
+            l -= 1
         else:
-            # We have a non-indented line
+            break
 
-            # This '=' notation was present in ledger files, but beancount
-            # doesn't support them... yet.
-            # if "=" in linestart:
-                # Use effective date if specified
-                # linestart = linestart.split("=")[1]
+    # Everything before line l is front matter
+    ret = "\n".join(lines[0:l])
 
-            try:
-                dateparse.parse(linestart)
-            except ValueError:
-                if txs:
-                    ret += sorted_txs(txs)
-                    txs = ""
-                non_tx += line + "\n"
-                continue
-
-            # If this is a new transaction, print any preceding
-            # non-transaction
-            if non_tx:
-                ret += non_tx + "\n"
-                non_tx = ""
-
-            # Save the start of the transaction
-            txs += "\n" + line + "\n"
-
-    # Output any remaining items
-    if non_tx:
-        ret += non_tx + "\n"
-        non_tx = ""
-    elif txs:
-        ret += sorted_txs(txs)
-        txs = ""
-
-    # Don't let those gaps grow infinitely
-    while "\n\n\n" in ret:
-        ret = ret.replace("\n\n\n", "\n\n")
-
-    # Remove newlines after open commands
-    opens = re.findall(r"\d\d\d\d-\d\d-\d\d open .*\n+", ret)
-    for o in opens:
-        ret = ret.replace(o, o.rstrip() + "\n")
-
-    # Remove newlines after close commands
-    opens = re.findall(r"\d\d\d\d-\d\d-\d\d close .*\n\n", ret)
-    for o in opens:
-        ret = ret.replace(o, o.rstrip() + "\n")
-
+    ret += sorted_txs("\n".join(lines[l:]))
     return ret
-
 
 @click.command()
 @click.option("-w", "--write", default=False, is_flag=True)
@@ -144,6 +112,7 @@ def cli(infile: str, write: bool = False) -> None:
 
     """
     ret = sort_beancount_text(Path(infile).read_text())
+    print(ret)
     if write:
         bak_count = 0
         while os.path.exists(f"{infile}.bak{bak_count}"):
