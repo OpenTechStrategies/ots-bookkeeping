@@ -35,7 +35,6 @@ various values of "supported" -- but that we haven't yet ported over to
   'equity':          show how much each partner has in current equity"
   'receipts PERIOD': show gross receipts for PERIOD."
   'profit YYYY':     show profit-&-loss statement for year YYYY."
-  'receivable':      show outstanding receivables"
   'payable':         show outstanding payables"
   'unbilled':        show unbilled work"
   'activity PERIOD': print entries+balances for PERIOD, sorted by date"
@@ -250,6 +249,45 @@ def client(client: str, date: str, verbose: bool) -> None:
     print("-" * len(line))
     print(line)
     print("-" * len(line))
+
+
+@cli.command()
+def receivable() -> None:
+    """Show current total receivable assets, including client-reimbursable expenses."""
+
+    # Essentially, we do what the 'qb all' command does, then show & total
+    # the appropriate lines.  This way bean-report do most of the work.
+    balances = subprocess.check_output(
+        f"bean-report {BEAN_DIR}/main.beancount balances", shell=True
+    ).decode("utf-8").splitlines()
+
+    total_receivables = 0
+    total_reimbursables = 0
+    asset_re = re.compile("^Assets:(Client-Reimbursable-Expenses|Receivable):([^ ]*) +(-?[0-9]+\\.[0-9][0-9] +USD)?")
+    for line in balances:
+        m = asset_re.match(line)
+        if m is not None:
+            if m.group(3) is not None:
+                who = m.group(2)
+                amount = float(m.group(3)[0:-4]) # strip the " USD" suffix
+                if m.group(1) == "Client-Reimbursable-Expenses":
+                    print(f"{who:32} (reimbursable expenses) {amount:-14.2f}")
+                    total_reimbursables += amount
+                elif m.group(1) == "Receivable":
+                    print(f"{who:32} (regular receivable)    {amount:-14.2f}")
+                    total_receivables += amount
+    total = total_receivables + total_reimbursables
+    print("")
+    print("=" * 71)
+    print("Total client-reimbursable expenses: "
+          + f"{' ' * 20} {total_reimbursables:-14.2f}")
+    print("Total regular receivables: "
+          + f"{' ' * 29} {total_receivables:-14.2f}")
+    print("-" * 71)
+    print("Total receivable assets: " \
+          + f"{' ' * 31} {(total_reimbursables + total_receivables):-14.2f}")
+    print("-" * 71)
+    print("")
 
 
 @cli.command()
