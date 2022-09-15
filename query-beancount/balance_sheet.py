@@ -69,10 +69,7 @@ class Table(list):
         "Return a string containing a latex representation of this table."
 
         ret = []
-        # Note: This use of 'longtabu' should be converted to
-        # 'longtable', just like the instance we converted in
-        # "profits-n-losses.jinja.ltx" (see comment in that file).
-        ret.append(r"\begin{longtabu} to 4.5in { X[2,l] X[1,r] }")
+        ret.append(r"\begin{longtable}{ l  l  l  r}")
         ret.append(r"  %s \\" % self.title)
         total = u.parse_money(0)
         for e in self:
@@ -80,7 +77,7 @@ class Table(list):
             ret.append(r"  ~~~~~%s & %s \\" % (e[0], self.format_money(e[1])))
         ret.append(r"  \hline")
         ret.append(r"  ~~~~~TOTAL %s & %s \\" % (self.title, self.format_money(total)))
-        ret.append(r"\end{longtabu}")
+        ret.append(r"\end{longtable}")
         return "\n".join(ret) + "\n"
 
 

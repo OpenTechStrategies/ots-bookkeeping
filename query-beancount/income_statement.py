@@ -206,7 +206,6 @@ def income_statement(output: str, year: int) -> None:
         "select account, cost(sum(position)) from open on %s-01-01 close on %s-01-01 group by account order by account"
         % (year, year + 1),
     )
-    # accounts = Accounts.query("select account, cost(sum(position)) from date < %s-01-01 group by account order by account" % (year+1))
 
     karl = {}
     james = {}
