@@ -1,3 +1,0 @@
-from typing import Any, Dict, Optional
-
-def render(template: str, context: Optional[Dict[str,Any]] = ..., **kwargs: Any) -> str: ...
